@@ -1,0 +1,16 @@
+name: units
+parameters: |
+  __spring.xml=http/httpserver.xml,jocean/eventengine.xml
+children:
+  - name: jmxsrv
+    parameters: |
+      jmxmp.port = 0
+      jmxhtml.port = 7321
+  - name: httpinbound.8080
+    parameters: |
+      http.port = 8080
+    children:
+      - name: feature_logging
+  - name: flowdemo
+    parameters: |
+      demo.action=hello
