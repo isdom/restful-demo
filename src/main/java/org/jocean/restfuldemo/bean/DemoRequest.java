@@ -26,7 +26,7 @@ public class DemoRequest {
 
     @Override
     public String toString() {
-        return "OutboundRequest [name=" + _name + "]";
+        return "DemoRequest [name=" + _name + "]";
     }
 
     @QueryParam("name")
