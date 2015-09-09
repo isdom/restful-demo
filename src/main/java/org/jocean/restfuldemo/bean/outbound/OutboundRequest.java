@@ -1,8 +1,9 @@
 /**
  * 
  */
-package org.jocean.restfuldemo.bean;
+package org.jocean.restfuldemo.bean.outbound;
 
+import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
 import com.alibaba.fastjson.annotation.JSONField;
@@ -12,7 +13,8 @@ import com.alibaba.fastjson.annotation.JSONField;
  * @author isdom
  *
  */
-public class DemoRequest {
+@Path("/boards")
+public class OutboundRequest {
     
     @JSONField(name="name")
     public String getName() {
