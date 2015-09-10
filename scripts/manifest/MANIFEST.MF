@@ -1,0 +1,2 @@
+Main-Class: org.jocean.restfuldemo.Main
+Class-Path: . 
