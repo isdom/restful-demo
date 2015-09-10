@@ -1,2 +1,2 @@
-Main-Class: org.jocean.restfuldemo.Main
+Main-Class: org.jocean.restfuldemo.Booter
 Class-Path: . 
