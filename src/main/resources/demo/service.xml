@@ -4,7 +4,8 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
         http://www.springframework.org/schema/beans/spring-beans.xsd">
         
-    <bean class="org.jocean.restfuldemo.flow.DemoFlow"
-          scope="prototype" />
+    <bean class="org.jocean.restfuldemo.service.DemoServiceImpl">
+          <property name="action" value="${demo.action}"/>
+    </bean>
     
 </beans>

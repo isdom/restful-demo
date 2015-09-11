@@ -17,7 +17,7 @@ import com.alibaba.fastjson.annotation.JSONField;
  *
  */
 @Path("/boards")
-@AnnotationWrapper(POST.class)  // 用 POST HTTP Method 请求
+//@AnnotationWrapper(POST.class)  // 用 POST HTTP Method 请求
 public class OutboundRequest {
     
     @JSONField(name="name")

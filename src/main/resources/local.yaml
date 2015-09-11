@@ -19,5 +19,7 @@ children:
     children:
       - name: feature_logging
   - name: flowdemo
+  - name: service
     parameters: |
-      demo.action=hello
+      demo.action=hi
+      

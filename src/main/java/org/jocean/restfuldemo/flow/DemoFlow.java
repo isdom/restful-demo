@@ -22,6 +22,7 @@ import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.restfuldemo.bean.DemoResponse;
 import org.jocean.restfuldemo.bean.outbound.OutboundRequest;
 import org.jocean.restfuldemo.bean.outbound.OutboundResponse;
+import org.jocean.restfuldemo.service.DemoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +78,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
             LOG.warn("exception when onOutboundError, detail:{}", 
                     ExceptionUtils.exception2detail(e));
             final DemoResponse response = new DemoResponse();
-            response.setMessage(_action + ":" + _request.getName() + "/" + e.toString());
+            response.setMessage(_service.getAction() + ":" + _request.getName() + "/" + e.toString());
             
             if (null != _outputReactor) {
                 _outputReactor.output(response);
@@ -91,7 +92,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
             LOG.warn("onOutboundResponse {}", outresponse);
             
             final DemoResponse response = new DemoResponse();
-            response.setMessage(_action + ":" + _request.getName() + "/" + outresponse.toString());
+            response.setMessage(_service.getAction() + ":" + _request.getName() + "/" + outresponse.toString());
             
             if (null != _outputReactor) {
                 _outputReactor.output(response);
@@ -106,17 +107,14 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
         this._outputReactor = reactor;
     }
     
-    public void setAction(final String action) {
-        this._action = action;
-    }
-    
     @BeanParam
     private DemoRequest _request;
     
-    private String _action;
-
     private OutputReactor _outputReactor;
     
     @Inject
     private SignalClient _signalClient;
+
+    @Inject
+    private DemoService _service;
 }
