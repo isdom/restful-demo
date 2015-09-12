@@ -6,6 +6,7 @@ package org.jocean.restfuldemo.flow;
 import javax.inject.Inject;
 import javax.ws.rs.BeanParam;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
@@ -92,7 +93,8 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
             LOG.warn("onOutboundResponse {}", outresponse);
             
             final DemoResponse response = new DemoResponse();
-            response.setMessage(_service.getAction() + ":" + _request.getName() + "/" + outresponse.toString());
+            response.setMessage("your ip is :" + _peerip + "/" 
+                    + _service.getAction() + ":" + _request.getName() + "/" + outresponse.toString());
             
             if (null != _outputReactor) {
                 _outputReactor.output(response);
@@ -106,6 +108,9 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
     public void setOutputReactor(final OutputReactor reactor) throws Exception {
         this._outputReactor = reactor;
     }
+    
+    @HeaderParam("X-Forwarded-For")
+    private String _peerip;
     
     @BeanParam
     private DemoRequest _request;
