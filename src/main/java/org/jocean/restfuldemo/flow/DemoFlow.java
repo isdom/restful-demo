@@ -9,6 +9,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 
 import org.jocean.event.api.AbstractFlow;
 import org.jocean.event.api.BizStep;
@@ -28,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-@Path("/welcome")
+@Path("/welcome/{roomno}")
 public class DemoFlow extends AbstractFlow<DemoFlow> implements
         OutputSource {
 	
@@ -79,7 +80,8 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
             LOG.warn("exception when onOutboundError, detail:{}", 
                     ExceptionUtils.exception2detail(e));
             final DemoResponse response = new DemoResponse();
-            response.setMessage(_service.getAction() + ":" + _request.getName() + "/" + e.toString());
+            response.setMessage("room(" + _roomno + "):" 
+                    + _service.getAction() + ":" + _request.getName() + "/" + e.toString());
             
             if (null != _outputReactor) {
                 _outputReactor.output(response);
@@ -93,7 +95,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
             LOG.warn("onOutboundResponse {}", outresponse);
             
             final DemoResponse response = new DemoResponse();
-            response.setMessage("your ip is :" + _peerip + "/" 
+            response.setMessage("room(" + _roomno + ")/your ip is :" + _peerip + "/" 
                     + _service.getAction() + ":" + _request.getName() + "/" + outresponse.toString());
             
             if (null != _outputReactor) {
@@ -114,6 +116,9 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
     
     @BeanParam
     private DemoRequest _request;
+    
+    @PathParam("roomno")
+    private String _roomno;
     
     private OutputReactor _outputReactor;
     
