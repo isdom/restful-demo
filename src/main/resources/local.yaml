@@ -9,6 +9,9 @@ children:
   - name: httpinbound.8080
     parameters: |
       http.port = 8080
+      http.address=127.0.0.1
+      inbound.pathpattern=/welcome/[{|}|/|\\w]*
+      inbound.category=demo
     children:
       - name: feature_logging
   - name: regsignal_embed.outbound

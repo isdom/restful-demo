@@ -29,7 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-@Path("/welcome/{roomno}")
+//@Path("/welcome/{roomno}")
+@Path("/welcome/simple")
 public class DemoFlow extends AbstractFlow<DemoFlow> implements
         OutputSource {
 	
