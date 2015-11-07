@@ -46,6 +46,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
                     this, currentEventHandler().getName(), currentEvent(),
                     this._request);
         }
+        setEndReason("success.get");
         return this.onHttpAccept();
     }
 
@@ -58,6 +59,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
                     this, currentEventHandler().getName(), currentEvent(),
                     this._request);
         }
+        setEndReason("success.post");
         return this.onHttpAccept();
     }
 
@@ -87,6 +89,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
             if (null != _outputReactor) {
                 _outputReactor.output(response);
             }
+            setEndReason("failure.outbound_error");
             return null;
         }
         
