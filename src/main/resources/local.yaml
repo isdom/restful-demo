@@ -1,6 +1,6 @@
 name: units
 parameters: |
-  __spring.xml=http/httpserver.xml,jocean/eventengine.xml,http/httpclient.xml,http/signal.xml
+  __spring.xml=http/httpserver.xml,jocean/eventengine.xml,http/httpclient.xml,http/signal.xml,unit/flowstats.xml
 children:
   - name: jmxsrv
     parameters: |
