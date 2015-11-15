@@ -11,8 +11,8 @@ dependencies {
     /* log */
     compile 'org.slf4j:slf4j-api:1.7.7'
 
-    compile 'io.netty:netty-all:4.0.31.Final'
-    compile 'io.reactivex:rxjava:1.0.14'
+    compile 'io.netty:netty-all:4.0.33.Final'
+    compile 'io.reactivex:rxjava:1.0.15'
 
     /* jocean */
     compile('org.jocean:jocean-idiom:0.1.3-SNAPSHOT') { transitive = false }
