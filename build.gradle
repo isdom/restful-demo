@@ -30,7 +30,7 @@ dependencies {
     compile "org.apache.commons:commons-pool2:2.2"
     compile "com.google.guava:guava:18.0"
 
-    compile 'com.alibaba:fastjson:1.1.41'
+    compile 'com.alibaba:fastjson:1.2.7'
 
     /* for yaml */
     compile 'org.yaml:snakeyaml:1.16'
