@@ -96,7 +96,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
         @OnEvent(event = "onOutboundResponse")
         private BizStep onOutboundResponse(final OutboundResponse outresponse) 
                 throws Exception {
-            LOG.warn("onOutboundResponse {}", outresponse);
+            LOG.info("onOutboundResponse {}", outresponse);
             
             final DemoResponse response = new DemoResponse();
             response.setMessage("room(" + _roomno + ")/your ip is :" + _peerip + "/" 
