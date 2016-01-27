@@ -16,7 +16,6 @@ import org.jocean.event.api.BizStep;
 import org.jocean.event.api.EventUtils;
 import org.jocean.event.api.annotation.OnEvent;
 import org.jocean.http.rosa.SignalClient;
-import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.restful.OutputReactor;
 import org.jocean.restful.OutputSource;
@@ -67,8 +66,8 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
 
         final OutboundRequest outbound = new OutboundRequest();
         
-        this._signalClient.defineInteraction(outbound)
-        .compose(RxNettys.<OutboundResponse>filterProgress())
+        this._signalClient.<OutboundResponse>defineInteraction(outbound)
+//        .compose(RxNettys.<OutboundResponse>filterProgress())
         .subscribe(EventUtils.receiver2observer(
             selfEventReceiver(),
             "onOutboundResponse",
