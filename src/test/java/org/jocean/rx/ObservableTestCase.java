@@ -225,4 +225,69 @@ public class ObservableTestCase {
         assertTrue(unsubscribed3.get());
         assertTrue(unsubscribed4.get());
     }
+
+    @Test
+    public final void testFlatMapQuadrupleDelayOnCompleted() throws InterruptedException {
+        final AtomicBoolean unsubscribed1 = new AtomicBoolean(false);
+        final AtomicBoolean unsubscribed2 = new AtomicBoolean(false);
+        final AtomicBoolean unsubscribed3 = new AtomicBoolean(false);
+        final AtomicBoolean unsubscribed4 = new AtomicBoolean(false);
+        final SubscriberHolder<String> holder1 = new SubscriberHolder<String>();
+        final SubscriberHolder<String> holder2 = new SubscriberHolder<String>();
+        final SubscriberHolder<String> holder3 = new SubscriberHolder<String>();
+        final SubscriberHolder<String> holder4 = new SubscriberHolder<String>();
+        
+        final Subscription subscription = 
+            createObservableByHolder(unsubscribed1, holder1)
+            .flatMap(flatMapFuncOf(unsubscribed2, holder2))
+            .flatMap(flatMapFuncOf(unsubscribed3, holder3))
+            .flatMap(flatMapFuncOf(unsubscribed4, holder4))
+            .subscribe();
+        
+        assertEquals(1, holder1.getSubscriberCount());
+        assertEquals(0, holder2.getSubscriberCount());
+        assertEquals(0, holder3.getSubscriberCount());
+        assertEquals(0, holder4.getSubscriberCount());
+        
+        holder1.getAt(0).onNext("hello");
+        
+        assertFalse(unsubscribed1.get());
+        assertFalse(unsubscribed2.get());
+        assertFalse(unsubscribed3.get());
+        assertFalse(unsubscribed4.get());
+        
+        assertEquals(1, holder2.getSubscriberCount());
+        assertEquals(0, holder3.getSubscriberCount());
+        assertEquals(0, holder4.getSubscriberCount());
+        holder2.getAt(0).onNext("world");
+        
+        assertFalse(unsubscribed1.get());
+        assertFalse(unsubscribed2.get());
+        assertFalse(unsubscribed3.get());
+        assertFalse(unsubscribed4.get());
+        
+        assertEquals(1, holder3.getSubscriberCount());
+        assertEquals(0, holder4.getSubscriberCount());
+        holder3.getAt(0).onNext("rx");
+        
+        assertFalse(unsubscribed1.get());
+        assertFalse(unsubscribed2.get());
+        assertFalse(unsubscribed3.get());
+        assertFalse(unsubscribed4.get());
+        
+        assertEquals(1, holder4.getSubscriberCount());
+        holder4.getAt(0).onNext("java");
+        
+        assertFalse(unsubscribed1.get());
+        assertFalse(unsubscribed2.get());
+        assertFalse(unsubscribed3.get());
+        assertFalse(unsubscribed4.get());
+        
+        subscription.unsubscribe();
+        
+        assertTrue(unsubscribed1.get());
+        assertTrue(unsubscribed2.get());
+        assertTrue(unsubscribed3.get());
+        assertTrue(unsubscribed4.get());
+    }
 }
