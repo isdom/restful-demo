@@ -9,40 +9,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.jocean.idiom.rx.SubscriberHolder;
 import org.junit.Test;
 
-import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
 import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Func1;
-import rx.subscriptions.Subscriptions;
 
 public class ObservableTestCase {
-    private <T> Observable<? extends T> createObservableByHolder(
-            final AtomicBoolean unsubscribed,
-            final SubscriberHolder<T> holder) {
-        return Observable.create(new OnSubscribe<T>() {
-            @Override
-            public void call(final Subscriber<? super T> subscriber) {
-                subscriber.add(Subscriptions.create(new Action0() {
-                    @Override
-                    public void call() {
-                        unsubscribed.set(true);
-                    }}));
-                holder.call(subscriber);
-            }});
-    }
-    
-    private <T, R> Func1<T, Observable<? extends R>> flatMapFuncOf(
-            final AtomicBoolean unsubscribed,
-            final SubscriberHolder<R> holder) {
-        return new Func1<T, Observable<? extends R>>() {
-            @Override
-            public Observable<? extends R> call(T t) {
-                return createObservableByHolder(unsubscribed, holder);
-            }};
-    }
-    
     @Test
     public final void testFlatMapTwice() throws InterruptedException {
         final AtomicBoolean unsubscribed1 = new AtomicBoolean(false);
@@ -50,8 +19,8 @@ public class ObservableTestCase {
         final SubscriberHolder<String> holder1 = new SubscriberHolder<String>();
         final SubscriberHolder<String> holder2 = new SubscriberHolder<String>();
         
-        createObservableByHolder(unsubscribed1, holder1)
-        .flatMap(flatMapFuncOf(unsubscribed2, holder2))
+        TestUtil.createObservableByHolder(unsubscribed1, holder1)
+        .flatMap(TestUtil.flatMapFuncOf(unsubscribed2, holder2))
         .subscribe();
         
         assertEquals(1, holder1.getSubscriberCount());
@@ -81,8 +50,8 @@ public class ObservableTestCase {
         final SubscriberHolder<String> holder2 = new SubscriberHolder<String>();
         
         final Subscription subscription = 
-                createObservableByHolder(unsubscribed1, holder1)
-                .flatMap(flatMapFuncOf(unsubscribed2, holder2))
+                TestUtil.createObservableByHolder(unsubscribed1, holder1)
+                .flatMap(TestUtil.flatMapFuncOf(unsubscribed2, holder2))
                 .subscribe();
         
         assertEquals(1, holder1.getSubscriberCount());
@@ -109,8 +78,8 @@ public class ObservableTestCase {
         final SubscriberHolder<String> holder2 = new SubscriberHolder<String>();
         
         final Subscription subscription = 
-                createObservableByHolder(unsubscribed1, holder1)
-                .flatMap(flatMapFuncOf(unsubscribed2, holder2))
+                TestUtil.createObservableByHolder(unsubscribed1, holder1)
+                .flatMap(TestUtil.flatMapFuncOf(unsubscribed2, holder2))
                 .subscribe();
         
         assertEquals(1, holder1.getSubscriberCount());
@@ -131,9 +100,9 @@ public class ObservableTestCase {
         final SubscriberHolder<String> holder2 = new SubscriberHolder<String>();
         final SubscriberHolder<String> holder3 = new SubscriberHolder<String>();
         
-        createObservableByHolder(unsubscribed1, holder1)
-        .flatMap(flatMapFuncOf(unsubscribed2, holder2))
-        .flatMap(flatMapFuncOf(unsubscribed3, holder3))
+        TestUtil.createObservableByHolder(unsubscribed1, holder1)
+        .flatMap(TestUtil.flatMapFuncOf(unsubscribed2, holder2))
+        .flatMap(TestUtil.flatMapFuncOf(unsubscribed3, holder3))
         .subscribe();
         
         assertEquals(1, holder1.getSubscriberCount());
@@ -176,10 +145,10 @@ public class ObservableTestCase {
         final SubscriberHolder<String> holder3 = new SubscriberHolder<String>();
         final SubscriberHolder<String> holder4 = new SubscriberHolder<String>();
         
-        createObservableByHolder(unsubscribed1, holder1)
-        .flatMap(flatMapFuncOf(unsubscribed2, holder2))
-        .flatMap(flatMapFuncOf(unsubscribed3, holder3))
-        .flatMap(flatMapFuncOf(unsubscribed4, holder4))
+        TestUtil.createObservableByHolder(unsubscribed1, holder1)
+        .flatMap(TestUtil.flatMapFuncOf(unsubscribed2, holder2))
+        .flatMap(TestUtil.flatMapFuncOf(unsubscribed3, holder3))
+        .flatMap(TestUtil.flatMapFuncOf(unsubscribed4, holder4))
         .subscribe();
         
         assertEquals(1, holder1.getSubscriberCount());
@@ -238,10 +207,10 @@ public class ObservableTestCase {
         final SubscriberHolder<String> holder4 = new SubscriberHolder<String>();
         
         final Subscription subscription = 
-            createObservableByHolder(unsubscribed1, holder1)
-            .flatMap(flatMapFuncOf(unsubscribed2, holder2))
-            .flatMap(flatMapFuncOf(unsubscribed3, holder3))
-            .flatMap(flatMapFuncOf(unsubscribed4, holder4))
+            TestUtil.createObservableByHolder(unsubscribed1, holder1)
+            .flatMap(TestUtil.flatMapFuncOf(unsubscribed2, holder2))
+            .flatMap(TestUtil.flatMapFuncOf(unsubscribed3, holder3))
+            .flatMap(TestUtil.flatMapFuncOf(unsubscribed4, holder4))
             .subscribe();
         
         assertEquals(1, holder1.getSubscriberCount());
