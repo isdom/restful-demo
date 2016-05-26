@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.jocean.idiom.rx.SubscriberHolder;
 import org.junit.Test;
 
+import rx.Observer;
 import rx.Subscription;
 
 public class ObservableTestCase {
@@ -258,5 +259,36 @@ public class ObservableTestCase {
         assertTrue(unsubscribed2.get());
         assertTrue(unsubscribed3.get());
         assertTrue(unsubscribed4.get());
+    }
+
+    @Test
+    public final void testUnsubscribe() throws InterruptedException {
+        final AtomicBoolean unsubscribed = new AtomicBoolean(false);
+        final SubscriberHolder<String> holder = new SubscriberHolder<String>();
+        
+        final Subscription subscription = 
+            TestUtil.createObservableByHolder(unsubscribed, holder)
+            .subscribe(new Observer<String>() {
+                @Override
+                public void onCompleted() {
+                    
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    assertFalse(unsubscribed.get());
+//                    assertFalse(subscription.isUnsubscribed());
+                }
+
+                @Override
+                public void onNext(String t) {
+                    
+                }});
+        
+        assertEquals(1, holder.getSubscriberCount());
+        
+        holder.getAt(0).onError(new RuntimeException());
+        
+        assertTrue(unsubscribed.get());
     }
 }
