@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jocean.idiom.rx.SubscriberHolder;
 import org.junit.Test;
@@ -266,7 +267,8 @@ public class ObservableTestCase {
         final AtomicBoolean unsubscribed = new AtomicBoolean(false);
         final SubscriberHolder<String> holder = new SubscriberHolder<String>();
         
-        final Subscription subscription = 
+        final AtomicReference<Subscription> subscriptionRef = new AtomicReference<Subscription>();
+        subscriptionRef.set(
             TestUtil.createObservableByHolder(unsubscribed, holder)
             .subscribe(new Observer<String>() {
                 @Override
@@ -277,13 +279,16 @@ public class ObservableTestCase {
                 @Override
                 public void onError(Throwable e) {
                     assertFalse(unsubscribed.get());
-//                    assertFalse(subscription.isUnsubscribed());
+                    assertFalse(subscriptionRef.get().isUnsubscribed());
+                    subscriptionRef.get().unsubscribe();
+                    assertTrue(unsubscribed.get());
+                    assertTrue(subscriptionRef.get().isUnsubscribed());
                 }
 
                 @Override
                 public void onNext(String t) {
                     
-                }});
+                }}));
         
         assertEquals(1, holder.getSubscriberCount());
         
