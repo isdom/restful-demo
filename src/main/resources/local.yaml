@@ -2,6 +2,9 @@ name: units
 parameters: |
   __spring.xml=http/httpserver.xml,jocean/eventengine.xml,http/httpclient.xml,http/signal.xml,unit/flowstats.xml
 children:
+  - name: jolokia
+    parameters: |
+      jolokia.port = 3020
   - name: jmxsrv
     parameters: |
       jmxmp.port = 0

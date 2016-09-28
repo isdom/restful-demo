@@ -40,8 +40,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
     @OnEvent(event = "initWithGet")
     private BizStep onHttpGet() throws Exception {
         if (LOG.isDebugEnabled()) {
-            LOG.debug(
-                    "DemoFlow Get({})/{}/{}, QueryParams: req={}",
+            LOG.debug("DemoFlow Get({})/{}/{}, QueryParams: req={}",
                     this, currentEventHandler().getName(), currentEvent(),
                     this._request);
         }
@@ -59,6 +58,14 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
                     this._request);
         }
         setEndReason("success.post");
+//        final DemoResponse response = new DemoResponse();
+//        response.setMessage("room(" + _roomno + ")/your ip is :" + _peerip + "/" 
+//                + _service.getAction() + ":" + _request.getName() + "/" );
+//        
+//        if (null != _outputReactor) {
+//            _outputReactor.output(response);
+//        }
+//        return null;
         return this.onHttpAccept();
     }
 
@@ -67,7 +74,6 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
         final OutboundRequest outbound = new OutboundRequest();
         
         this._signalClient.<OutboundResponse>defineInteraction(outbound)
-//        .compose(RxNettys.<OutboundResponse>filterProgress())
         .subscribe(EventUtils.receiver2observer(
             selfEventReceiver(),
             "onOutboundResponse",
