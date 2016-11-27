@@ -9,18 +9,15 @@ configurations {
 
 dependencies {
     /* log */
-    compile 'org.slf4j:slf4j-api:1.7.7'
-
-    compile 'io.netty:netty-all:4.0.41.Final'
-    compile 'io.reactivex:rxjava:1.2.0'
+    compile 'org.slf4j:slf4j-api:1.7.21'
 
     /* jocean */
-    compile('org.jocean:jocean-idiom:0.1.4-SNAPSHOT') { transitive = false }
+    compile('org.jocean:jocean-idiom:0.1.4-SNAPSHOT')
     compile('org.jocean:jocean-event-api:0.0.7') { transitive = false }
     compile('org.jocean:jocean-event-core:0.1.5') { transitive = false }
     compile('org.jocean:jocean-event-extend:0.0.4') { transitive = false }
-    compile("org.jocean:jocean-http:0.0.2-SNAPSHOT") { transitive = false }
-    compile('org.jocean:jocean-j2se:0.0.4-SNAPSHOT') { transitive = false }
+    compile("org.jocean:jocean-http:0.0.2-SNAPSHOT")
+    // compile('org.jocean:jocean-j2se:0.0.4-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-restful-server:0.0.5-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-jdmk:0.0.2') { transitive = false }
     
@@ -33,7 +30,7 @@ dependencies {
     compile "org.apache.commons:commons-pool2:2.2"
     compile "com.google.guava:guava:18.0"
 
-    compile 'com.alibaba:fastjson:1.2.7'
+    compile 'com.alibaba:fastjson:1.2.21'
 
     /* for yaml */
     compile 'org.yaml:snakeyaml:1.16'
@@ -44,9 +41,9 @@ dependencies {
     compile 'com.jcraft:jzlib:1.1.2'
     
     /* Log */
-    compile "org.slf4j:jcl-over-slf4j:1.7.7"
-    compile "org.slf4j:log4j-over-slf4j:1.7.7"
-    compile "ch.qos.logback:logback-classic:1.1.2"
+    compile "org.slf4j:jcl-over-slf4j:1.7.21"
+    compile "org.slf4j:log4j-over-slf4j:1.7.21"
+    compile "ch.qos.logback:logback-classic:1.1.7"
 
     /* spring */
     compile "org.springframework:spring-context-support:${springVersion}"
@@ -61,5 +58,5 @@ dependencies {
 
     runtime 'org.jvnet.opendmk:jmxremote_optional:1.0_01-ea'
 
-    testCompile "junit:junit:4.11"
+    testCompile "junit:junit:4.12"
 }
