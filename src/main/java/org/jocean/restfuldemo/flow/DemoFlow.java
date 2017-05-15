@@ -73,7 +73,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
 
         final OutboundRequest outbound = new OutboundRequest();
         
-        this._signalClient.<OutboundResponse>defineInteraction(outbound)
+        this._signalClient.interaction().request(outbound).<OutboundResponse>build()
         .subscribe(EventUtils.receiver2observer(
             selfEventReceiver(),
             "onOutboundResponse",
