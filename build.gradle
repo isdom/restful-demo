@@ -9,7 +9,7 @@ configurations {
 
 dependencies {
     /* log */
-    compile 'org.slf4j:slf4j-api:1.7.21'
+    compile 'org.slf4j:slf4j-api:1.7.25'
 
     /* jocean */
     compile 'org.jocean:jocean-idiom:0.1.4-SNAPSHOT'
