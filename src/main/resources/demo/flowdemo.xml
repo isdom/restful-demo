@@ -11,6 +11,7 @@
           scope="prototype">
           <property name="wechatRedirecturi" value="${wechat.redirecturi}"/>
           <property name="alipayRedirecturi" value="${alipay.redirecturi}"/>
+          <property name="qqRedirecturi" value="${qq.redirecturi}"/>
     </bean>
           
 </beans>

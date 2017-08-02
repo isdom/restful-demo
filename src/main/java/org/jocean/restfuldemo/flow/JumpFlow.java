@@ -80,6 +80,16 @@ public class JumpFlow extends AbstractFlow<JumpFlow> implements
             response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
             response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
             this._outputReactor.outputAsHttpResponse(response);
+        } else if (_ua.contains("QQ")) {
+            final FullHttpResponse response = new DefaultFullHttpResponse(
+                    HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.buffer(0));
+
+            // Add 'Content-Length' header only for a keep-alive connection.
+            response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+            response.headers().set(HttpHeaderNames.LOCATION, this._qqRedirecturi);
+            response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
+            response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
+            this._outputReactor.outputAsHttpResponse(response);
         } else {
             this._outputReactor.output(null);
         }
@@ -93,6 +103,10 @@ public class JumpFlow extends AbstractFlow<JumpFlow> implements
     
     public void setAlipayRedirecturi(String redirecturi) {
         this._alipayRedirecturi = redirecturi;
+    }
+    
+    public void setQqRedirecturi(String redirecturi) {
+        this._qqRedirecturi = redirecturi;
     }
     
     @Override
@@ -111,6 +125,7 @@ public class JumpFlow extends AbstractFlow<JumpFlow> implements
     
     private String _wechatRedirecturi;
     private String _alipayRedirecturi;
+    private String _qqRedirecturi;
     
     private OutputReactor _outputReactor;
 }

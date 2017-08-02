@@ -26,7 +26,8 @@ children:
       - name: feature_logging
   - name: flowdemo
     parameters: |
-      wechat.redirecturi=http://www.baidu.com/
+      qq.redirecturi=http://www.qq.com/
+      wechat.redirecturi=https://weixin.qq.com/
       alipay.redirecturi=https://qr.alipay.com/ppx01048optiqycgvvhwpfc?q=1
   - name: service
     parameters: |
