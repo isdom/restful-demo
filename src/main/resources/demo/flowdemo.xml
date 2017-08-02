@@ -7,4 +7,10 @@
     <bean class="org.jocean.restfuldemo.flow.DemoFlow"
           scope="prototype" />
     
+    <bean class="org.jocean.restfuldemo.flow.JumpFlow"
+          scope="prototype">
+          <property name="wechatRedirecturi" value="${wechat.redirecturi}"/>
+          <property name="alipayRedirecturi" value="${alipay.redirecturi}"/>
+    </bean>
+          
 </beans>

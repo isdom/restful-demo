@@ -12,7 +12,7 @@ children:
   - name: httpinbound.8080
     parameters: |
       http.port = 8080
-      http.address=127.0.0.1
+      http.address=0.0.0.0
       inbound.pathpattern=/welcome/[{|}|/|\\w]*
       inbound.category=demo
     children:
@@ -25,6 +25,9 @@ children:
     children:
       - name: feature_logging
   - name: flowdemo
+    parameters: |
+      wechat.redirecturi=http://www.baidu.com/
+      alipay.redirecturi=https://qr.alipay.com/ppx01048optiqycgvvhwpfc?q=1
   - name: service
     parameters: |
       demo.action=hi
