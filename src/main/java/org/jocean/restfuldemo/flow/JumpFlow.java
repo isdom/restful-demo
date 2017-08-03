@@ -3,6 +3,8 @@
  */
 package org.jocean.restfuldemo.flow;
 
+import java.util.Map;
+
 import javax.ws.rs.BeanParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -38,7 +40,7 @@ public class JumpFlow extends AbstractFlow<JumpFlow> implements
     @OnEvent(event = "initWithGet")
     private BizStep onHttpGet() throws Exception {
         if (LOG.isDebugEnabled()) {
-            LOG.debug("DemoFlow Get({})/{}/{}, QueryParams: req={}",
+            LOG.debug("JumpFlow Get({})/{}/{}, QueryParams: req={}",
                     this, currentEventHandler().getName(), currentEvent(),
                     this._request);
         }
@@ -60,53 +62,30 @@ public class JumpFlow extends AbstractFlow<JumpFlow> implements
     }
 
     private BizStep onHttpAccept() throws Exception {
-        if (_ua.contains("MicroMessenger")) {
-            final FullHttpResponse response = new DefaultFullHttpResponse(
-                    HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.buffer(0));
+        final FullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.buffer(0));
 
-            // Add 'Content-Length' header only for a keep-alive connection.
-            response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-            response.headers().set(HttpHeaderNames.LOCATION, this._wechatRedirecturi);
-            response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
-            response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
-            this._outputReactor.outputAsHttpResponse(response);
-        } else if (_ua.contains("AlipayClient")) {
-            final FullHttpResponse response = new DefaultFullHttpResponse(
-                    HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.buffer(0));
-
-            // Add 'Content-Length' header only for a keep-alive connection.
-            response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-            response.headers().set(HttpHeaderNames.LOCATION, this._alipayRedirecturi);
-            response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
-            response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
-            this._outputReactor.outputAsHttpResponse(response);
-        } else if (_ua.contains("QQ")) {
-            final FullHttpResponse response = new DefaultFullHttpResponse(
-                    HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.buffer(0));
-
-            // Add 'Content-Length' header only for a keep-alive connection.
-            response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-            response.headers().set(HttpHeaderNames.LOCATION, this._qqRedirecturi);
-            response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
-            response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
-            this._outputReactor.outputAsHttpResponse(response);
-        } else {
-            this._outputReactor.output(null);
+        // Add 'Content-Length' header only for a keep-alive connection.
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+        response.headers().set(HttpHeaderNames.LOCATION, this._defaultRedirecturi);
+        response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
+        response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
+        for (Map.Entry<String, String> entry : _ua2redirecturi.entrySet()) {
+            if ( _ua.contains(entry.getKey()) ) {
+                response.headers().set(HttpHeaderNames.LOCATION, entry.getValue());
+                break;
+            }
         }
-        
+        this._outputReactor.outputAsHttpResponse(response);
         return null;
     }
     
-    public void setWechatRedirecturi(String redirecturi) {
-        this._wechatRedirecturi = redirecturi;
+    public void setDefaultRedirecturi(String redirecturi) {
+        this._defaultRedirecturi = redirecturi;
     }
     
-    public void setAlipayRedirecturi(String redirecturi) {
-        this._alipayRedirecturi = redirecturi;
-    }
-    
-    public void setQqRedirecturi(String redirecturi) {
-        this._qqRedirecturi = redirecturi;
+    public void setUa2uri(final Map<String, String> ua2redirecturi) {
+        this._ua2redirecturi = ua2redirecturi;
     }
     
     @Override
@@ -123,9 +102,9 @@ public class JumpFlow extends AbstractFlow<JumpFlow> implements
     @BeanParam
     private DemoRequest _request;
     
-    private String _wechatRedirecturi;
-    private String _alipayRedirecturi;
-    private String _qqRedirecturi;
+    private String _defaultRedirecturi;
+    
+    private Map<String, String> _ua2redirecturi;
     
     private OutputReactor _outputReactor;
 }

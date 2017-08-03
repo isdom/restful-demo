@@ -7,11 +7,12 @@
     <bean class="org.jocean.restfuldemo.flow.DemoFlow"
           scope="prototype" />
     
+    <bean id="ua2uri" class="java.util.concurrent.ConcurrentHashMap"/>
+    
     <bean class="org.jocean.restfuldemo.flow.JumpFlow"
           scope="prototype">
-          <property name="wechatRedirecturi" value="${wechat.redirecturi}"/>
-          <property name="alipayRedirecturi" value="${alipay.redirecturi}"/>
-          <property name="qqRedirecturi" value="${qq.redirecturi}"/>
+          <property name="defaultRedirecturi" value="${redirecturi.default}"/>
+          <property name="ua2uri" ref="ua2uri"/>
     </bean>
           
 </beans>

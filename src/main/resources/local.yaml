@@ -26,9 +26,16 @@ children:
       - name: feature_logging
   - name: flowdemo
     parameters: |
-      qq.redirecturi=http://www.qq.com/
-      wechat.redirecturi=https://weixin.qq.com/
-      alipay.redirecturi=https://qr.alipay.com/ppx01048optiqycgvvhwpfc?q=1
+      redirecturi.default=http://www.baidu.com/
+    children:
+      - name: ua2uri.wechat
+        parameters: |
+          ua=MicroMessenger
+          uri=https://weixin.qq.com/
+      - name: ua2uri.alipay
+        parameters: |
+          ua=AlipayClient
+          uri=https://qr.alipay.com/ppx01048optiqycgvvhwpfc
   - name: service
     parameters: |
       demo.action=hi
