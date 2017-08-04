@@ -1,7 +1,7 @@
 /**
  *
  */
-package org.jocean.restfuldemo.flow;
+package org.jocean.restfuldemo.bll;
 
 import java.util.Map;
 

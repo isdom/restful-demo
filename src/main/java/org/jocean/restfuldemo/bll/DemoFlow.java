@@ -1,7 +1,7 @@
 /**
  *
  */
-package org.jocean.restfuldemo.flow;
+package org.jocean.restfuldemo.bll;
 
 import javax.inject.Inject;
 import javax.ws.rs.BeanParam;
