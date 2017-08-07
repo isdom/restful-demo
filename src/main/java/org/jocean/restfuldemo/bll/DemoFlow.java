@@ -11,7 +11,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 
-import org.jocean.event.api.AbstractFlow;
 import org.jocean.event.api.BizStep;
 import org.jocean.event.api.EventUtils;
 import org.jocean.event.api.annotation.OnEvent;
@@ -30,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 //@Path("/welcome/{roomno}")
 @Path("/welcome/simple")
-public class DemoFlow extends AbstractFlow<DemoFlow> implements
+public class DemoFlow extends CORSFlow<DemoFlow> implements
         OutputSource {
 	
     private static final Logger LOG = 
@@ -69,7 +68,7 @@ public class DemoFlow extends AbstractFlow<DemoFlow> implements
         return this.onHttpAccept();
     }
 
-    private BizStep onHttpAccept() throws Exception {
+    protected BizStep onHttpAccept() throws Exception {
 
         final OutboundRequest outbound = new OutboundRequest();
         
