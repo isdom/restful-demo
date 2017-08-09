@@ -12,6 +12,7 @@ import org.jocean.event.api.BizStep;
 import org.jocean.event.api.annotation.OnEvent;
 import org.jocean.restful.OutputReactor;
 import org.jocean.restful.OutputSource;
+import org.jocean.restfuldemo.bean.CORSResponse;
 //import org.jocean.wcdemo.api.BaseResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,13 +70,9 @@ public abstract class CORSFlow<FLOW> extends AbstractFlow<FLOW> implements
     
     protected abstract BizStep onHttpAccept() throws Exception;
     
-//    protected void sendbackResponse(final BaseResponse resp) {
-//        if (null != _outputReactor) {
-//            resp.setAccessControlAllowOrigin(_acrOrigin);
-//            _outputReactor.output(resp);
-//            _outputReactor = null;
-//        }
-//    }
+    protected void fillOrigin(final CORSResponse resp) {
+            resp.setAccessControlAllowOrigin(_acrOrigin);
+    }
     
     @Override
     public void setOutputReactor(final OutputReactor reactor) throws Exception {
