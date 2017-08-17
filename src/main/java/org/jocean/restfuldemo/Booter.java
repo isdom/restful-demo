@@ -13,7 +13,7 @@ public class Booter {
         }
 
         try {
-            Main.main(args);
+            ZKMain.main(args);
         } catch (Exception e) {
             e.printStackTrace();
         }
