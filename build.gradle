@@ -18,6 +18,7 @@ dependencies {
     compile 'org.jocean:jocean-restful-server:0.0.5-SNAPSHOT'
     compile 'org.jocean:jocean-jdmk:0.0.2'
     runtime 'org.jocean:jocean-event-extend:0.0.5-SNAPSHOT'
+    compile 'org.jocean:jocean-svr:0.0.1-SNAPSHOT'
     
     /* Log */
     compile "org.slf4j:jcl-over-slf4j:1.7.25"
