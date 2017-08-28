@@ -28,4 +28,14 @@ public class DemoResource {
         
         return Observable.just((HttpObject)response);
     }
+
+    @Path("hi")
+    public Observable<String> hiAsString(final Observable<HttpObject> req) {
+        return Observable.just("hi, ", "hello", " world!");
+    }
+
+    @Path("null")
+    public Observable<String> returnNull(final Observable<HttpObject> req) {
+        return null;
+    }
 }
