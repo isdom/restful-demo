@@ -43,7 +43,8 @@ children:
     parameters: |
       http.port = 9090
       http.address=0.0.0.0
-      inbound.pathpattern=/newrest/[{|}|/|\\w]*
+      restin.pathpattern=/newrest/[{|}|/|\\w]*
+      restin.category = demo
     children:
       - name: feature_logging
   - name: bll2
