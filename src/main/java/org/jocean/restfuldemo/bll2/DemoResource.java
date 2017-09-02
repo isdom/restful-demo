@@ -1,6 +1,9 @@
 package org.jocean.restfuldemo.bll2;
 
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
+
+import org.jocean.svr.ParamUtil;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -8,9 +11,12 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import rx.Observable;
+import rx.functions.Action1;
+import rx.functions.Func1;
 
 @Path("/newrest/")
 public class DemoResource {
@@ -31,11 +37,29 @@ public class DemoResource {
 
     @Path("hi")
     public Observable<String> hiAsString(final Observable<HttpObject> req) {
-        return Observable.just("hi, ", "hello", " world!");
+        return req.doOnNext(new Action1<HttpObject>() {
+            @Override
+            public void call(final HttpObject hobj) {
+                if (hobj instanceof HttpRequest) {
+                    ParamUtil.assignHeaderParams(DemoResource.this, ((HttpRequest)hobj));
+                }
+            }})
+        .last()
+        .flatMap(new Func1<HttpObject, Observable<String>>() {
+            @Override
+            public Observable<String> call(HttpObject t) {
+                return Observable.just("hi, ", _peerip, "'s ", _ua);
+            }});
     }
 
     @Path("null")
     public Observable<String> returnNull(final Observable<HttpObject> req) {
         return null;
     }
+    
+    @HeaderParam("X-Forwarded-For")
+    private String _peerip;
+    
+    @HeaderParam("User-Agent")
+    private String _ua;
 }
