@@ -3,6 +3,7 @@ package org.jocean.restfuldemo.bll2;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 
+import org.jocean.http.util.RxNettys;
 import org.jocean.svr.ParamUtil;
 
 import io.netty.buffer.Unpooled;
@@ -15,7 +16,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import rx.Observable;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
 @Path("/newrest/")
@@ -37,19 +37,13 @@ public class DemoResource {
 
     @Path("hi")
     public Observable<String> hiAsString(final Observable<HttpObject> req) {
-        return req.doOnNext(new Action1<HttpObject>() {
-            @Override
-            public void call(final HttpObject hobj) {
-                if (hobj instanceof HttpRequest) {
-                    ParamUtil.assignHeaderParams(DemoResource.this, ((HttpRequest)hobj));
-                }
-            }})
-        .last()
-        .flatMap(new Func1<HttpObject, Observable<String>>() {
-            @Override
-            public Observable<String> call(HttpObject t) {
-                return Observable.just("hi, ", _peerip, "'s ", _ua);
-            }});
+        return req.compose(RxNettys.asHttpRequest())
+            .doOnNext(ParamUtil.injectHeaderParams(this))
+            .flatMap(new Func1<HttpRequest, Observable<String>>() {
+                @Override
+                public Observable<String> call(HttpRequest t) {
+                    return Observable.just("hi, ", _peerip, "'s ", _ua);
+                }});
     }
 
     @Path("null")
