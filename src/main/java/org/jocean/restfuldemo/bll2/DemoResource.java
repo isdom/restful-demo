@@ -2,6 +2,7 @@ package org.jocean.restfuldemo.bll2;
 
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
+import javax.ws.rs.QueryParam;
 
 import org.jocean.http.util.RxNettys;
 import org.jocean.svr.ParamUtil;
@@ -12,7 +13,6 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import rx.Observable;
@@ -39,10 +39,11 @@ public class DemoResource {
     public Observable<String> hiAsString(final Observable<HttpObject> req) {
         return req.compose(RxNettys.asHttpRequest())
             .doOnNext(ParamUtil.injectHeaderParams(this))
-            .flatMap(new Func1<HttpRequest, Observable<String>>() {
+            .doOnNext(ParamUtil.injectQueryParams(this))
+            .flatMap(new Func1<Object, Observable<String>>() {
                 @Override
-                public Observable<String> call(HttpRequest t) {
-                    return Observable.just("hi, ", _peerip, "'s ", _ua);
+                public Observable<String> call(Object none) {
+                    return Observable.just("hi, ", _name, "'s ", _ua);
                 }});
     }
 
@@ -56,4 +57,7 @@ public class DemoResource {
     
     @HeaderParam("User-Agent")
     private String _ua;
+    
+    @QueryParam("name")
+    private String _name;
 }
