@@ -5,14 +5,15 @@ import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
 import org.jocean.http.util.RxNettys;
+import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.ParamUtil;
 import org.jocean.svr.ToFullHttpRequest;
+import org.jocean.svr.UntilRequestCompleted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -33,7 +34,8 @@ public class DemoResource {
         = LoggerFactory.getLogger(DemoResource.class);
     
     @Path("hello")
-    public Observable<HttpObject> hello(final Observable<HttpObject> req) {
+    public Observable<HttpObject> hello(final Observable<HttpObject> req, 
+            final UntilRequestCompleted<HttpObject> urc) {
         final FullHttpResponse response = new DefaultFullHttpResponse(
                 HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.buffer(0));
 
@@ -43,7 +45,9 @@ public class DemoResource {
         response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
         response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
         
-        return Observable.just((HttpObject)response).delaySubscription(req.last());
+        return Observable.just((HttpObject)response)
+                .compose(urc)
+                ;
     }
 
     @Path("hi")
@@ -61,6 +65,18 @@ public class DemoResource {
     @Path("null")
     public Observable<String> returnNull(final Observable<HttpObject> req) {
         return null;
+    }
+    
+    @Path("asjson")
+    public Observable<String> asjson(final Observable<HttpObject> req,
+            final ToFullHttpRequest tofull) {
+        return req.compose(tofull)
+            .map(ParamUtil.<DemoRequest>decodeContentAs(DemoRequest.class))
+            .flatMap(new Func1<DemoRequest, Observable<String>>() {
+                @Override
+                public Observable<String> call(final DemoRequest json) {
+                    return Observable.just(json.toString());
+                }});
     }
     
     @Path("foo")
