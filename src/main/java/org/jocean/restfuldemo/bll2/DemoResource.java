@@ -74,7 +74,7 @@ public class DemoResource {
     public Observable<String> asjson(final Observable<HttpObject> req,
             final ToFullHttpRequest tofull) {
         return req.compose(tofull)
-            .map(ParamUtil.<DemoRequest>decodeContentAs(DemoRequest.class))
+            .map(ParamUtil.<DemoRequest>decodeJsonContentAs(DemoRequest.class))
             .flatMap(new Func1<DemoRequest, Observable<String>>() {
                 @Override
                 public Observable<String> call(final DemoRequest json) {
