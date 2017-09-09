@@ -51,7 +51,8 @@ public class DemoResource {
     }
 
     @Path("hi")
-    public Observable<String> hiAsString(final Observable<HttpObject> req) {
+    public Observable<String> hiAsString(final Observable<HttpObject> req,
+            final UntilRequestCompleted<String> urc) {
         return req.compose(RxNettys.asHttpRequest())
             .doOnNext(ParamUtil.injectHeaderParams(this))
             .doOnNext(ParamUtil.injectQueryParams(this))
@@ -59,7 +60,9 @@ public class DemoResource {
                 @Override
                 public Observable<String> call(Object none) {
                     return Observable.just("hi, ", _name, "'s ", _ua);
-                }});
+                }})
+            .compose(urc)
+            ;
     }
 
     @Path("null")
