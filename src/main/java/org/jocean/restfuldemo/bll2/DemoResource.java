@@ -1,6 +1,7 @@
 package org.jocean.restfuldemo.bll2;
 
 import javax.ws.rs.HeaderParam;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
@@ -105,9 +106,12 @@ public class DemoResource {
     
     //  TBD
     @Path("foo100")
-    public Observable<HttpObject> fooReply100continue(final Observable<HttpObject> req,
+    public Observable<HttpObject> fooReply100continue(
+            final io.netty.handler.codec.http.HttpMethod httpmethod,
+            @HeaderParam("User-Agent") final String ua,
+            final Observable<HttpObject> req,
             final ToFullHttpRequest tofull) {
-        LOG.info("begin fooReply100continue");
+        LOG.info("begin fooReply100continue using {} with ua {}", httpmethod, ua);
         try {
         return Observable.concat(
                 req.compose(RxNettys.asHttpRequest())
