@@ -53,14 +53,16 @@ public class DemoResource {
 
     @Path("hi")
     public Observable<String> hiAsString(final Observable<HttpObject> req,
+            @QueryParam("name") final String name,
+            @HeaderParam("User-Agent") final String ua,
             final UntilRequestCompleted<String> urc) {
         return req.compose(RxNettys.asHttpRequest())
-            .doOnNext(ParamUtil.injectHeaderParams(this))
-            .doOnNext(ParamUtil.injectQueryParams(this))
+//            .doOnNext(ParamUtil.injectHeaderParams(this))
+//            .doOnNext(ParamUtil.injectQueryParams(this))
             .flatMap(new Func1<Object, Observable<String>>() {
                 @Override
                 public Observable<String> call(Object none) {
-                    return Observable.just("hi, ", _name, "'s ", _ua);
+                    return Observable.just("hi, ", name, "'s ", ua);
                 }})
             .compose(urc)
             ;
