@@ -1,17 +1,21 @@
 package org.jocean.restfuldemo.bll2;
 
 import javax.ws.rs.HeaderParam;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
 import org.jocean.http.util.RxNettys;
 import org.jocean.restfuldemo.bean.DemoRequest;
+import org.jocean.svr.Interceptors;
 import org.jocean.svr.MessageBody;
+import org.jocean.svr.MessageDecoder;
 import org.jocean.svr.MessageResponse;
 import org.jocean.svr.ParamUtil;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.ToFullHttpRequest;
 import org.jocean.svr.UntilRequestCompleted;
+import org.jocean.svr.CORSInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,12 +24,12 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpUtil;
 import rx.Observable;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
 @Path("/newrest/")
+@Interceptors({CORSInterceptor.class})
 public class DemoResource {
 
     private static final Logger LOG
@@ -49,26 +53,21 @@ public class DemoResource {
 
         @HeaderParam("location")
         private String _location;
-        
-        @HeaderParam("content-length")
-        private int _size = 0;
     }
     
     @Path("hello")
-    public Observable<Object> hello(final Observable<HttpObject> req, 
+    @POST
+    public Observable<Object> hello(
+            final HttpMethod method,
+            final Observable<HttpObject> req, 
             final UntilRequestCompleted<Object> urc) {
-//        final FullHttpResponse response = new DefaultFullHttpResponse(
-//                HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.buffer(0));
-//
-//        // Add 'Content-Length' header only for a keep-alive connection.
-//        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-//        response.headers().set(HttpHeaderNames.LOCATION, "http://baidu.com/world");
-//        response.headers().set(HttpHeaderNames.CACHE_CONTROL, HttpHeaderValues.NO_STORE);
-//        response.headers().set(HttpHeaderNames.PRAGMA, HttpHeaderValues.NO_CACHE);
-        
-        return Observable.just(new Redirectable("http://baidu.com/world"))
-                .compose(urc)
-                ;
+        if (method.equals(HttpMethod.OPTIONS)) {
+            return ResponseUtil.acceptCORS(req);
+        } else {
+            return Observable.just(new Redirectable("http://baidu.com/world"))
+                    .compose(urc)
+                    ;
+        }
     }
 
     @Path("hi")
@@ -94,15 +93,12 @@ public class DemoResource {
     }
     
     @Path("asjson")
-    public Observable<String> asjson(final Observable<HttpObject> req,
-            final ToFullHttpRequest tofull) {
-        return req.compose(tofull)
-            .map(ParamUtil.<DemoRequest>decodeJsonContentAs(DemoRequest.class))
-            .flatMap(new Func1<DemoRequest, Observable<String>>() {
-                @Override
-                public Observable<String> call(final DemoRequest json) {
-                    return Observable.just(json.toString());
-                }});
+    public Observable<Object> asjson(final Observable<MessageDecoder> omd) {
+        return omd.flatMap(new Func1<MessageDecoder, Observable<Object>>() {
+            @Override
+            public Observable<Object> call(final MessageDecoder decoder) {
+                return ResponseUtil.responseAsJson(200, decoder.decodeJsonAs(DemoRequest.class));
+            }});
     }
     
     @Path("foo")
@@ -131,46 +127,38 @@ public class DemoResource {
     public Observable<Object> fooReply100continue(
             final HttpMethod httpmethod,
             @QueryParam("name") final String name,
-            @HeaderParam("User-Agent") final String ua,
+            @HeaderParam("user-agent") final String ua,
+            @HeaderParam("content-length") final String size,
             final Observable<HttpObject> req,
             final ToFullHttpRequest tofull) {
-        LOG.info("begin fooReply100continue using {} with ua {}", httpmethod, ua);
-        try {
-        return Observable.concat(
-                req.compose(RxNettys.asHttpRequest())
-//                .doOnNext(ParamUtil.injectHeaderParams(this))
-//                .doOnNext(ParamUtil.injectQueryParams(this))
-                .flatMap(new Func1<HttpRequest, Observable<Object>>() {
-                    @Override
-                    public Observable<Object> call(final HttpRequest msg) {
-                        if (HttpUtil.is100ContinueExpected(msg)) {
-                            LOG.info("sendback 100-continue");
-//                            return Observable.just((HttpObject)new DefaultFullHttpResponse(
-//                                    msg.protocolVersion(),
-//                                    HttpResponseStatus.CONTINUE));
-                            return ResponseUtil.statusOnly(100);
-                        } else {
-                            return Observable.empty();
-                        }
-                    }}),
-                req.compose(tofull)
-                .flatMap(new Func1<Func0<FullHttpRequest>, Observable<Object>>() {
-                    @Override
-                    public Observable<Object> call(final Func0<FullHttpRequest> getfull) {
-                        final FullHttpRequest fullreq = getfull.call();
-                        
-                        try {
-                            return Observable.just(ResponseUtil.respWithStatus(200), 
-                                "hi, ", name, "'s ", ua,
-                                ResponseUtil.emptyBody());
-                        } finally {
-                            fullreq.release();
-                        }
-                    }})
-                );
-        } finally {
-            LOG.info("endof fooReply100continue");
-        }
+        return req.compose(tofull)
+            .flatMap(new Func1<Func0<FullHttpRequest>, Observable<Object>>() {
+                @Override
+                public Observable<Object> call(final Func0<FullHttpRequest> getfull) {
+                    final FullHttpRequest fullreq = getfull.call();
+                    try {
+                        return Observable.just(ResponseUtil.respWithStatus(200), 
+                            httpmethod.toString(),
+                            "/",
+                            "hi, ", 
+                            name, 
+                            "'s ", 
+                            ua,
+                            ResponseUtil.emptyBody());
+                    } finally {
+                        fullreq.release();
+                    }
+                }})
+            .compose(ResponseUtil.handleExpect100(req, new Func1<HttpRequest, Integer>() {
+                @Override
+                public Integer call(final HttpRequest r) {
+                    LOG.info("sendback 100-continue");
+                    if (Integer.parseInt(size) >= 1028) {
+                        return 417;
+                    } else {
+                        return 100;
+                    }
+                }}));
     }
     
     @HeaderParam("X-Forwarded-For")

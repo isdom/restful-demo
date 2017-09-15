@@ -39,6 +39,7 @@ children:
 #  - name: service
 #    parameters: |
 #      demo.action=hi
+  - name: cors
   - name: restin.9090
     parameters: |
       http.port = 9090
