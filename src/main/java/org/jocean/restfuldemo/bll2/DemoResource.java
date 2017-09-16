@@ -1,21 +1,22 @@
 package org.jocean.restfuldemo.bll2;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import javax.ws.rs.HeaderParam;
+import javax.ws.rs.OPTIONS;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
-import org.jocean.http.util.RxNettys;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.Interceptors;
 import org.jocean.svr.MessageBody;
 import org.jocean.svr.MessageDecoder;
 import org.jocean.svr.MessageResponse;
-import org.jocean.svr.ParamUtil;
 import org.jocean.svr.ResponseUtil;
-import org.jocean.svr.ToFullHttpRequest;
 import org.jocean.svr.UntilRequestCompleted;
-import org.jocean.svr.CORSInterceptor;
+import org.jocean.svr.interceptor.EnableCORS;
+import org.jocean.svr.interceptor.LogRest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,11 +26,11 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import rx.Observable;
-import rx.functions.Func0;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 @Path("/newrest/")
-@Interceptors({CORSInterceptor.class})
+@Interceptors({EnableCORS.class, LogRest.class})
 public class DemoResource {
 
     private static final Logger LOG
@@ -56,35 +57,22 @@ public class DemoResource {
     }
     
     @Path("hello")
+    @OPTIONS
     @POST
     public Observable<Object> hello(
             final HttpMethod method,
-            final Observable<HttpObject> req, 
             final UntilRequestCompleted<Object> urc) {
-        if (method.equals(HttpMethod.OPTIONS)) {
-            return ResponseUtil.acceptCORS(req);
-        } else {
-            return Observable.just(new Redirectable("http://baidu.com/world"))
-                    .compose(urc)
-                    ;
-        }
+        return Observable.just(new Redirectable("http://baidu.com/world"))
+                .compose(urc)
+                ;
     }
 
     @Path("hi")
-    public Observable<String> hiAsString(final Observable<HttpObject> req,
+    public Observable<String> hiAsString(
             @QueryParam("name") final String name,
             @HeaderParam("User-Agent") final String ua,
             final UntilRequestCompleted<String> urc) {
-        return req.compose(RxNettys.asHttpRequest())
-//            .doOnNext(ParamUtil.injectHeaderParams(this))
-//            .doOnNext(ParamUtil.injectQueryParams(this))
-            .flatMap(new Func1<Object, Observable<String>>() {
-                @Override
-                public Observable<String> call(Object none) {
-                    return Observable.just("hi, ", name, "'s ", ua);
-                }})
-            .compose(urc)
-            ;
+        return Observable.just("hi, ", name, "'s ", ua).compose(urc);
     }
 
     @Path("null")
@@ -102,54 +90,42 @@ public class DemoResource {
     }
     
     @Path("foo")
-    public Observable<String> foo(final Observable<HttpObject> req,
-            final ToFullHttpRequest tofull) {
-        return req.compose(RxNettys.asHttpRequest())
-            .doOnNext(ParamUtil.injectHeaderParams(this))
-            .doOnNext(ParamUtil.injectQueryParams(this))
-            .compose(tofull)
-            .flatMap(new Func1<Func0<FullHttpRequest>, Observable<String>>() {
+    public Observable<String> foo(
+            @QueryParam("name") final String name,
+            @HeaderParam("user-agent") final String ua,
+            final Observable<MessageDecoder> omd) {
+        return omd.flatMap(new Func1<MessageDecoder, Observable<String>>() {
                 @Override
-                public Observable<String> call(final Func0<FullHttpRequest> getfull) {
-                    final FullHttpRequest fullreq = getfull.call();
+                public Observable<String> call(final MessageDecoder decoder) {
+                    final AtomicReference<String> peerip = new AtomicReference<>();
+                    decoder.visitFullRequest(new Action1<FullHttpRequest>() {
+                        @Override
+                        public void call(final FullHttpRequest fhr) {
+                            peerip.set(fhr.headers().get("X-Forwarded-For"));
+                        }});
                     
-                    try {
-                        LOG.info("fullreq: {}", fullreq);
-                        return Observable.just("hi, ", _name, "'s ", _ua);
-                    } finally {
-                        fullreq.release();
-                    }
+                    return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip.get());
                 }});
     }
     
-    //  TBD
     @Path("foo100")
     public Observable<Object> fooReply100continue(
             final HttpMethod httpmethod,
             @QueryParam("name") final String name,
             @HeaderParam("user-agent") final String ua,
             @HeaderParam("content-length") final String size,
-            final Observable<HttpObject> req,
-            final ToFullHttpRequest tofull) {
-        return req.compose(tofull)
-            .flatMap(new Func1<Func0<FullHttpRequest>, Observable<Object>>() {
-                @Override
-                public Observable<Object> call(final Func0<FullHttpRequest> getfull) {
-                    final FullHttpRequest fullreq = getfull.call();
-                    try {
-                        return Observable.just(ResponseUtil.respWithStatus(200), 
-                            httpmethod.toString(),
-                            "/",
-                            "hi, ", 
-                            name, 
-                            "'s ", 
-                            ua,
-                            ResponseUtil.emptyBody());
-                    } finally {
-                        fullreq.release();
-                    }
-                }})
-            .compose(ResponseUtil.handleExpect100(req, new Func1<HttpRequest, Integer>() {
+            final UntilRequestCompleted<Object> urc,
+            final Observable<HttpObject> obsRequest) {
+        return Observable.just(ResponseUtil.respWithStatus(200),
+                httpmethod.toString(),
+                "/",
+                "hi, ", 
+                name, 
+                "'s ", 
+                ua,
+                ResponseUtil.emptyBody())
+            .compose(urc)
+            .compose(ResponseUtil.handleExpect100(obsRequest, new Func1<HttpRequest, Integer>() {
                 @Override
                 public Integer call(final HttpRequest r) {
                     LOG.info("sendback 100-continue");
