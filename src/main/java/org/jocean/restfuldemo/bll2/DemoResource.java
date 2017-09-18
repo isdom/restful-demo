@@ -1,5 +1,6 @@
 package org.jocean.restfuldemo.bll2;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.HeaderParam;
@@ -15,13 +16,14 @@ import org.jocean.svr.MessageDecoder;
 import org.jocean.svr.MessageResponse;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
+import org.jocean.svr._100ContinueAware;
 import org.jocean.svr.interceptor.EnableCORS;
+import org.jocean.svr.interceptor.Handle100Continue;
 import org.jocean.svr.interceptor.LogRest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
@@ -30,7 +32,7 @@ import rx.functions.Action1;
 import rx.functions.Func1;
 
 @Path("/newrest/")
-@Interceptors({EnableCORS.class, LogRest.class})
+@Interceptors({LogRest.class, EnableCORS.class, Handle100Continue.class})
 public class DemoResource {
 
     private static final Logger LOG
@@ -98,10 +100,9 @@ public class DemoResource {
                 @Override
                 public Observable<String> call(final MessageDecoder decoder) {
                     final AtomicReference<String> peerip = new AtomicReference<>();
-                    decoder.visitFullRequest(new Action1<FullHttpRequest>() {
+                    decoder.visitContent(new Action1<ByteBuf>() {
                         @Override
-                        public void call(final FullHttpRequest fhr) {
-                            peerip.set(fhr.headers().get("X-Forwarded-For"));
+                        public void call(final ByteBuf content) {
                         }});
                     
                     return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip.get());
@@ -115,7 +116,20 @@ public class DemoResource {
             @HeaderParam("user-agent") final String ua,
             @HeaderParam("content-length") final String size,
             final UntilRequestCompleted<Object> urc,
-            final Observable<HttpObject> obsRequest) {
+            final _100ContinueAware handle100continue
+            ) {
+        handle100continue.setPredicate(new Func1<HttpRequest, Integer>() {
+            @Override
+            public Integer call(final HttpRequest r) {
+                if (Integer.parseInt(size) >= 1028) {
+                    LOG.info("upstream too long, sendback 417");
+                    return 417;
+                } else {
+                    LOG.info("sendback 100-continue");
+                    return 100;
+                }
+            }
+        });
         return Observable.just(ResponseUtil.respWithStatus(200),
                 httpmethod.toString(),
                 "/",
@@ -125,16 +139,37 @@ public class DemoResource {
                 ua,
                 ResponseUtil.emptyBody())
             .compose(urc)
-            .compose(ResponseUtil.handleExpect100(obsRequest, new Func1<HttpRequest, Integer>() {
+            ;
+    }
+    
+    @Path("upload")
+    @POST
+    public Observable<String> upload(
+            final Observable<MessageDecoder> omd,
+            final Observable<HttpObject> request,
+            final UntilRequestCompleted<String> urc) {
+        final AtomicInteger idx = new AtomicInteger(0);
+        return omd.flatMap(new Func1<MessageDecoder, Observable<String>>() {
                 @Override
-                public Integer call(final HttpRequest r) {
-                    LOG.info("sendback 100-continue");
-                    if (Integer.parseInt(size) >= 1028) {
-                        return 417;
-                    } else {
-                        return 100;
-                    }
-                }}));
+                public Observable<String> call(final MessageDecoder decoder) {
+                    LOG.debug(idx.get() + ": MessageDecoder {}", decoder);
+                    final StringBuilder sb = new StringBuilder();
+                    decoder.visitContent(new Action1<ByteBuf>() {
+                        @Override
+                        public void call(final ByteBuf c) {
+                            sb.append(", size:");
+                            sb.append(c.readableBytes());
+                        }});
+                    return Observable.just("\r\n[" + idx.getAndIncrement() + "] upload:" + decoder.contentType()
+                            + sb.toString())
+                            .delay(new Func1<String, Observable<HttpObject>>() {
+                                @Override
+                                public Observable<HttpObject> call(String t) {
+                                    return request.last();
+                                }});
+                }})
+//                .compose(urc)
+                ;
     }
     
     @HeaderParam("X-Forwarded-For")

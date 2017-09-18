@@ -44,6 +44,7 @@
 
     <logger name="io.netty" level="DEBUG"/>
     <logger name="org.jocean.svr" level="DEBUG"/>
+    <logger name="org.jocean.restfuldemo" level="DEBUG"/>
     
     <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
         <includeCallerData>true</includeCallerData>

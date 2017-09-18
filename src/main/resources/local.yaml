@@ -1,6 +1,10 @@
 name: units
 parameters: |
   __spring.xml=http/httpserver.xml,jocean/eventengine.xml,http/httpclient.xml,http/signal.xml,unit/flowstats.xml
+  # disable assembly
+  http.server.inbound.blocksize = -1
+  # set recv buffer size 8k
+  http.server.inbound.recvbuf = 8192
 children:
   - name: jolokia
     parameters: |
@@ -41,6 +45,7 @@ children:
 #      demo.action=hi
   - name: cors
   - name: logrest
+  - name: 100continue
   - name: restin.9090
     parameters: |
       http.port = 9090
