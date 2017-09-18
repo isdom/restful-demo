@@ -177,15 +177,15 @@ public class DemoResource {
                 ;
     }
     
-    @HeaderParam("X-Forwarded-For")
-    private String _peerip;
-    
-    @HeaderParam("User-Agent")
-    private String _ua;
-    
-    @HeaderParam("expect")
-    private String _expect;
-    
-    @QueryParam("name")
-    private String _name;
+//    @HeaderParam("X-Forwarded-For")
+//    private String _peerip;
+//    
+//    @HeaderParam("User-Agent")
+//    private String _ua;
+//    
+//    @HeaderParam("expect")
+//    private String _expect;
+//    
+//    @QueryParam("name")
+//    private String _name;
 }
