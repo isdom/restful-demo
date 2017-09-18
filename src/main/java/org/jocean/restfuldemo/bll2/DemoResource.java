@@ -9,6 +9,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
+import org.jocean.netty.BlobRepo.Blob;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.Interceptors;
 import org.jocean.svr.MessageBody;
@@ -154,11 +155,15 @@ public class DemoResource {
                 public Observable<String> call(final MessageDecoder decoder) {
                     LOG.debug(idx.get() + ": MessageDecoder {}", decoder);
                     final StringBuilder sb = new StringBuilder();
-                    decoder.visitContent(new Action1<ByteBuf>() {
+                    decoder.visitContentAsBlob(new Action1<Blob>() {
                         @Override
-                        public void call(final ByteBuf c) {
+                        public void call(final Blob blob) {
+                            sb.append(", name:");
+                            sb.append(blob.name());
+                            sb.append(", filename:");
+                            sb.append(blob.filename());
                             sb.append(", size:");
-                            sb.append(c.readableBytes());
+                            sb.append(blob.contentLength());
                         }});
                     return Observable.just("\r\n[" + idx.getAndIncrement() + "] upload:" + decoder.contentType()
                             + sb.toString())
