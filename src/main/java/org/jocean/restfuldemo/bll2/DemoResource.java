@@ -3,13 +3,14 @@ package org.jocean.restfuldemo.bll2;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.inject.Inject;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.OPTIONS;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
-import org.jocean.netty.BlobRepo.Blob;
+import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.Interceptors;
 import org.jocean.svr.MessageBody;
@@ -147,35 +148,33 @@ public class DemoResource {
     @POST
     public Observable<String> upload(
             final Observable<MessageDecoder> omd,
-            final Observable<HttpObject> request,
-            final UntilRequestCompleted<String> urc) {
+            final Observable<HttpObject> request) {
         final AtomicInteger idx = new AtomicInteger(0);
         return omd.flatMap(new Func1<MessageDecoder, Observable<String>>() {
                 @Override
                 public Observable<String> call(final MessageDecoder decoder) {
                     LOG.debug(idx.get() + ": MessageDecoder {}", decoder);
-                    final StringBuilder sb = new StringBuilder();
-                    decoder.visitContentAsBlob(new Action1<Blob>() {
-                        @Override
-                        public void call(final Blob blob) {
-                            sb.append(", name:");
-                            sb.append(blob.name());
-                            sb.append(", filename:");
-                            sb.append(blob.filename());
-                            sb.append(", size:");
-                            sb.append(blob.contentLength());
-                        }});
-                    return Observable.just("\r\n[" + idx.getAndIncrement() + "] upload:" + decoder.contentType()
-                            + sb.toString())
-                            .delay(new Func1<String, Observable<HttpObject>>() {
-                                @Override
-                                public Observable<HttpObject> call(String t) {
-                                    return request.last();
-                                }});
+                    return _blobRepo.putBlob(Integer.toString(idx.get()), decoder.blobProducer())
+                        .map(new Func1<String, String>() {
+                            @Override
+                            public String call(final String key) {
+                                return "\r\n[" 
+                                        + idx.getAndIncrement() 
+                                        + "] upload:" + decoder.contentType()
+                                        + " and saved as key("
+                                        + key + ")";
+                            }});
                 }})
-//                .compose(urc)
+//                .delay(new Func1<String, Observable<HttpObject>>() {
+//                    @Override
+//                    public Observable<HttpObject> call(String t) {
+//                        return request.last();
+//                    }});
                 ;
     }
+    
+    @Inject
+    private BlobRepo _blobRepo;
     
 //    @HeaderParam("X-Forwarded-For")
 //    private String _peerip;
