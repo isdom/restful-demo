@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
@@ -154,22 +155,21 @@ public class DemoResource {
                 @Override
                 public Observable<String> call(final MessageDecoder decoder) {
                     LOG.debug(idx.get() + ": MessageDecoder {}", decoder);
-                    return _blobRepo.putBlob(Integer.toString(idx.get()), decoder.blobProducer())
-                        .map(new Func1<String, String>() {
-                            @Override
-                            public String call(final String key) {
-                                return "\r\n[" 
-                                        + idx.getAndIncrement() 
-                                        + "] upload:" + decoder.contentType()
-                                        + " and saved as key("
-                                        + key + ")";
-                            }});
+                    if (decoder.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
+                        return Observable.just(decoder.decodeJsonAs(DemoRequest.class).toString());
+                    } else {
+                        return _blobRepo.putBlob(Integer.toString(idx.get()), decoder.blobProducer())
+                            .map(new Func1<String, String>() {
+                                @Override
+                                public String call(final String key) {
+                                    return "\r\n[" 
+                                            + idx.getAndIncrement() 
+                                            + "] upload:" + decoder.contentType()
+                                            + " and saved as key("
+                                            + key + ")";
+                                }});
+                    }
                 }})
-//                .delay(new Func1<String, Observable<HttpObject>>() {
-//                    @Override
-//                    public Observable<HttpObject> call(String t) {
-//                        return request.last();
-//                    }});
                 ;
     }
     
