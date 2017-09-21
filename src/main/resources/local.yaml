@@ -46,6 +46,7 @@ children:
   - name: cors
   - name: logrest
   - name: 100continue
+  - name: bll2
   - name: restin.9090
     parameters: |
       http.port = 9090
@@ -54,4 +55,12 @@ children:
       restin.category = demo
     children:
       - name: feature_logging
-  - name: bll2
+      - name: set_interceptor.demo
+        parameters: |
+          # Resource Class
+          resource.class=org.jocean.restfuldemo.bll2.DemoResource
+          # interceptors (full class name) to attach
+          resource.interceptors=\
+          org.jocean.svr.interceptor.LogRest,\
+          org.jocean.svr.interceptor.EnableCORS,\
+          org.jocean.svr.interceptor.Handle100Continue

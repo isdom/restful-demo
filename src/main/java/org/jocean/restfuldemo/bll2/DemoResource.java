@@ -12,16 +12,12 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
-import org.jocean.svr.Interceptors;
 import org.jocean.svr.MessageBody;
 import org.jocean.svr.MessageDecoder;
 import org.jocean.svr.MessageResponse;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr._100ContinueAware;
-import org.jocean.svr.interceptor.EnableCORS;
-import org.jocean.svr.interceptor.Handle100Continue;
-import org.jocean.svr.interceptor.LogRest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +31,6 @@ import rx.functions.Action1;
 import rx.functions.Func1;
 
 @Path("/newrest/")
-@Interceptors({LogRest.class, EnableCORS.class, Handle100Continue.class})
 public class DemoResource {
 
     private static final Logger LOG
