@@ -1,7 +1,6 @@
 package org.jocean.restfuldemo.bll2;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.inject.Inject;
 import javax.ws.rs.HeaderParam;
@@ -27,7 +26,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import rx.Observable;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
 @Path("/newrest/")
@@ -93,17 +91,12 @@ public class DemoResource {
     public Observable<String> foo(
             @QueryParam("name") final String name,
             @HeaderParam("user-agent") final String ua,
+            @HeaderParam("x-forwarded-for") final String peerip,
             final Observable<MessageDecoder> omd) {
         return omd.flatMap(new Func1<MessageDecoder, Observable<String>>() {
                 @Override
                 public Observable<String> call(final MessageDecoder decoder) {
-                    final AtomicReference<String> peerip = new AtomicReference<>();
-                    decoder.visitContent(new Action1<ByteBuf>() {
-                        @Override
-                        public void call(final ByteBuf content) {
-                        }});
-                    
-                    return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip.get());
+                    return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip);
                 }});
     }
     

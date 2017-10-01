@@ -1,6 +1,6 @@
 name: units
 parameters: |
-  __spring.xml=http/httpserver.xml,jocean/eventengine.xml,http/httpclient.xml,http/signal.xml,unit/flowstats.xml
+  __spring.xml=http/httpserver.xml,jocean/eventengine.xml,http/httpclient.xml,http/signal.xml,unit/flowstats.xml,unit/apistats.xml
   # disable assembly
   http.server.inbound.blocksize = -1
   # set recv buffer size 8k
@@ -43,6 +43,7 @@ children:
 #  - name: service
 #    parameters: |
 #      demo.action=hi
+  - name: statrest
   - name: cors
   - name: logrest
   - name: 100continue
@@ -61,6 +62,7 @@ children:
           resource.class=org.jocean.restfuldemo.bll2.DemoResource
           # interceptors (full class name) to attach
           resource.interceptors=\
+          org.jocean.svr.interceptor.StatRest,\
           org.jocean.svr.interceptor.LogRest,\
           org.jocean.svr.interceptor.EnableCORS,\
           org.jocean.svr.interceptor.Handle100Continue
