@@ -80,11 +80,8 @@ public class DemoResource {
     
     @Path("asjson")
     public Observable<Object> asjson(final Observable<MessageDecoder> omd) {
-        return omd.flatMap(new Func1<MessageDecoder, Observable<Object>>() {
-            @Override
-            public Observable<Object> call(final MessageDecoder decoder) {
-                return ResponseUtil.responseAsJson(200, decoder.decodeJsonAs(DemoRequest.class));
-            }});
+        return omd.<DemoRequest>flatMap(decoder -> decoder.decodeJsonAs(DemoRequest.class))
+            .map(req -> ResponseUtil.responseAsJson(200, req));
     }
     
     @Path("foo")
@@ -135,30 +132,25 @@ public class DemoResource {
     
     @Path("upload")
     @POST
-    public Observable<String> upload(
-            final Observable<MessageDecoder> omd,
-            final Observable<HttpObject> request) {
+    public Observable<String> upload(final Observable<MessageDecoder> omd) {
         final AtomicInteger idx = new AtomicInteger(0);
-        return omd.flatMap(new Func1<MessageDecoder, Observable<String>>() {
-                @Override
-                public Observable<String> call(final MessageDecoder decoder) {
-                    LOG.debug(idx.get() + ": MessageDecoder {}", decoder);
-                    if (decoder.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
-                        return Observable.just(decoder.decodeJsonAs(DemoRequest.class).toString());
-                    } else {
-                        return _blobRepo.putBlob(Integer.toString(idx.get()), decoder.blobProducer())
-                            .map(new Func1<String, String>() {
-                                @Override
-                                public String call(final String key) {
-                                    return "\r\n[" 
-                                            + idx.getAndIncrement() 
-                                            + "] upload:" + decoder.contentType()
-                                            + " and saved as key("
-                                            + key + ")";
-                                }});
-                    }
-                }})
-                ;
+        return omd.flatMap( decoder -> {
+            LOG.debug(idx.get() + ": MessageDecoder {}", decoder);
+            if (decoder.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
+                return decoder.decodeJsonAs(DemoRequest.class).map(req -> req.toString());
+            } else {
+                return _blobRepo.putBlob(Integer.toString(idx.get()), decoder.blobProducer())
+                    .map(new Func1<String, String>() {
+                        @Override
+                        public String call(final String key) {
+                            return "\r\n[" 
+                                    + idx.getAndIncrement() 
+                                    + "] upload:" + decoder.contentType()
+                                    + " and saved as key("
+                                    + key + ")";
+                        }});
+            }
+        });
     }
     
     @Inject
