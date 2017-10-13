@@ -81,7 +81,7 @@ public class DemoResource {
     @Path("asjson")
     public Observable<Object> asjson(final Observable<MessageDecoder> omd) {
         return omd.<DemoRequest>flatMap(decoder -> decoder.decodeJsonAs(DemoRequest.class))
-            .map(req -> ResponseUtil.responseAsJson(200, req));
+            .flatMap(req -> ResponseUtil.responseAsJson(200, req));
     }
     
     @Path("foo")
