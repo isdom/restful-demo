@@ -80,7 +80,7 @@ public class DemoResource {
     
     @Path("asjson")
     public Observable<Object> asjson(final Observable<MessageDecoder> omd) {
-        return omd.<DemoRequest>flatMap(decoder -> decoder.decodeJsonAs(DemoRequest.class))
+        return omd.flatMap(decoder -> decoder.<DemoRequest>decodeJsonAs(DemoRequest.class))
             .flatMap(req -> ResponseUtil.responseAsJson(200, req));
     }
     
@@ -88,13 +88,8 @@ public class DemoResource {
     public Observable<String> foo(
             @QueryParam("name") final String name,
             @HeaderParam("user-agent") final String ua,
-            @HeaderParam("x-forwarded-for") final String peerip,
-            final Observable<MessageDecoder> omd) {
-        return omd.flatMap(new Func1<MessageDecoder, Observable<String>>() {
-                @Override
-                public Observable<String> call(final MessageDecoder decoder) {
-                    return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip);
-                }});
+            @HeaderParam("x-forwarded-for") final String peerip) {
+        return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip);
     }
     
     @Path("foo100")
