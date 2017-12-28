@@ -13,36 +13,36 @@ children:
     parameters: |
       jmxmp.port = 0
       jmxhtml.port = 7321
-#  - name: httpinbound.8080
-#    parameters: |
-#      http.port = 8080
-#      http.address=0.0.0.0
-#      inbound.pathpattern=/welcome/[{|}|/|\\w]*
-#      inbound.category=demo
-#    children:
-#      - name: feature_logging
-#  - name: regsignal_embed.outbound
-#    parameters: |
-#      req.class =org.jocean.restfuldemo.bean.outbound.OutboundRequest
-#      resp.class=org.jocean.restfuldemo.bean.outbound.OutboundResponse
-#      signal.uri=http://api.huaban.com
-#    children:
-#      - name: feature_logging
-#  - name: flowdemo
-#    parameters: |
-#      redirecturi.default=http://www.baidu.com/
-#    children:
-#      - name: ua2uri.wechat
-#        parameters: |
-#          ua=MicroMessenger
-#          uri=https://weixin.qq.com/
-#      - name: ua2uri.alipay
-#        parameters: |
-#          ua=AlipayClient
-#          uri=https://qr.alipay.com/ppx01048optiqycgvvhwpfc
-#  - name: service
-#    parameters: |
-#      demo.action=hi
+  - name: httpinbound.8080
+    parameters: |
+      http.port = 8080
+      http.address=0.0.0.0
+      inbound.pathpattern=/welcome/[{|}|/|\\w]*
+      inbound.category=demo
+    children:
+      - name: feature_logging
+  - name: regsignal_embed.outbound
+    parameters: |
+      req.class =org.jocean.restfuldemo.bean.outbound.OutboundRequest
+      resp.class=org.jocean.restfuldemo.bean.outbound.OutboundResponse
+      signal.uri=http://api.huaban.com
+    children:
+      - name: feature_logging
+  - name: flowdemo
+    parameters: |
+      redirecturi.default=http://www.baidu.com/
+    children:
+      - name: ua2uri.wechat
+        parameters: |
+          ua=MicroMessenger
+          uri=https://weixin.qq.com/
+      - name: ua2uri.alipay
+        parameters: |
+          ua=AlipayClient
+          uri=https://qr.alipay.com/ppx01048optiqycgvvhwpfc
+  - name: service
+    parameters: |
+      demo.action=hi
   - name: statrest
   - name: cors
   - name: logrest
