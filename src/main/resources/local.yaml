@@ -6,6 +6,7 @@ parameters: |
   # set recv buffer size 8k
   http.server.inbound.recvbuf = 8192
 children:
+  - name: nettystats
   - name: jolokia
     parameters: |
       jolokia.port = 3020
