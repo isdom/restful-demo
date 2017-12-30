@@ -13,7 +13,6 @@ import javax.ws.rs.QueryParam;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
 import org.jocean.http.WritePolicy;
-import org.jocean.http.WritePolicy.Outboundable;
 import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
@@ -46,6 +45,7 @@ import io.netty.util.CharsetUtil;
 import rx.Observable;
 import rx.Observable.Transformer;
 import rx.functions.Action0;
+import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.observables.ConnectableObservable;
 
@@ -58,26 +58,18 @@ public class DemoResource {
     
     @Path("stream")
     public Object bigresp(final WritePolicyAware writePolicyAware) {
-        
-        final Observable<DisposableWrapper<ByteBuf>> contentSrc = 
-                Observable.range(1, 1000).map(idx -> Integer.toString(idx) + ".").compose(string2dwb());
-        
+
         final AtomicReference<Observable<? extends DisposableWrapper<ByteBuf>>> contentRef = new AtomicReference<>();
-        
+
         writePolicyAware.setWritePolicy(new WritePolicy() {
             @Override
             public void applyTo(final Outboundable outboundable) {
-                
                 outboundable.setFlushPerWrite(true);
-                final ConnectableObservable<DisposableWrapper<ByteBuf>> endSwitch = 
-                        Observable.<DisposableWrapper<ByteBuf>>empty().replay();
-                
-                final Observable<? extends DisposableWrapper<ByteBuf>> cachedContent =
-                        contentOverSended(outboundable, contentSrc, ()-> endSwitch.connect()).cache();
-                cachedContent.subscribe();
-                contentRef.set(Observable.switchOnNext(Observable.just(cachedContent, endSwitch)));
-            }});
-        
+                contentRef.set(buildContent(outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)), 
+                        Observable.range(1, 1000).map(idx -> Integer.toString(idx) + ".").compose(string2dwb())));
+            }
+        });
+
         return Observable.just(new FullMessage() {
 
             @SuppressWarnings("unchecked")
@@ -86,7 +78,7 @@ public class DemoResource {
                 final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
                 resp.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_PLAIN);
                 HttpUtil.setTransferEncodingChunked(resp, true);
-                return (M)resp;
+                return (M) resp;
             }
 
             @Override
@@ -106,31 +98,47 @@ public class DemoResource {
                     @Override
                     public Observable<? extends DisposableWrapper<ByteBuf>> content() {
                         return contentRef.get();
-                    }});
-            }});
+                    }
+                });
+            }
+        });
     }
-    
-    private Observable<DisposableWrapper<ByteBuf>> contentOverSended(
-        final Outboundable outboundable,
-        final Observable<DisposableWrapper<ByteBuf>> contentSrc, 
-        final Action0 endAction) {
-        
+
+    private Observable<? extends DisposableWrapper<ByteBuf>> buildContent(final Observable<Object> sended,
+            final Observable<DisposableWrapper<ByteBuf>> src) {
+        final ConnectableObservable<DisposableWrapper<ByteBuf>> endSwitch = Observable
+                .<DisposableWrapper<ByteBuf>>empty().replay();
         final AtomicReference<Object> firstRef = new AtomicReference<>(null);
         final AtomicInteger count = new AtomicInteger(0);
+        
+        final Observable<? extends DisposableWrapper<ByteBuf>> cachedContent = 
+                sended.compose(sended2content(
+                        obj -> null == firstRef.get() || obj == firstRef.get(), 
+                        () -> count.getAndIncrement() >= 100, 
+                        () -> {
+                            firstRef.set(null);
+                            return src.doOnNext(dwb -> firstRef.compareAndSet(null, dwb));
+                        },
+                        () -> endSwitch.connect()))
+                .cache();
+        cachedContent.subscribe();
+        return Observable.switchOnNext(Observable.just(cachedContent, endSwitch));
+    }
     
-        return outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)).flatMap(obj -> {
-            if (null == firstRef.get() || obj == firstRef.get()) {
-                if (count.get() < 100) {
-                    count.incrementAndGet();
-                    firstRef.set(null);
-                    return contentSrc.doOnNext(dwb -> firstRef.compareAndSet(null, dwb));
+    private Transformer<Object, DisposableWrapper<ByteBuf>> sended2content(
+            final Func1<Object, Boolean> needNextContent,
+            final Func0<Boolean> isContentComplete, 
+            final Func0<Observable<DisposableWrapper<ByteBuf>>> buildContent,
+            final Action0 onEnd) {
+        return sended->sended.flatMap(obj -> {
+            if (needNextContent.call(obj)) {
+                if (!isContentComplete.call()) {
+                    return buildContent.call();
                 } else {
-                    endAction.call();
-                    return Observable.empty();
+                    onEnd.call();
                 }
-            } else {
-                return Observable.empty();
             }
+            return Observable.empty();
         });
     }
 
