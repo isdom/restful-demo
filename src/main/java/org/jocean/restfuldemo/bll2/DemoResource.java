@@ -1,9 +1,5 @@
 package org.jocean.restfuldemo.bll2;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -17,6 +13,7 @@ import javax.ws.rs.QueryParam;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
 import org.jocean.http.WritePolicy;
+import org.jocean.http.WritePolicy.Outboundable;
 import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
@@ -47,8 +44,10 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
 import rx.Observable;
-import rx.Subscriber;
+import rx.Observable.Transformer;
+import rx.functions.Action0;
 import rx.functions.Func1;
+import rx.observables.ConnectableObservable;
 
 @Path("/newrest/")
 @Controller
@@ -59,38 +58,24 @@ public class DemoResource {
     
     @Path("stream")
     public Object bigresp(final WritePolicyAware writePolicyAware) {
-        final AtomicInteger count = new AtomicInteger(0);
-        final Func1<Queue<String>, Boolean> fillContent = content -> {
-            if (count.get() < 100) {
-                LOG.debug("re-fill content");
-                count.incrementAndGet();
-                for (int idx = 1; idx < 10000; idx++) {
-                    content.add(Integer.toString(idx) + ".");
-                }
-                return true;
-            } else {
-                return false;
-            }
-        };
         
-        final Queue<String> content = new LinkedList<>();
-        final AtomicReference<Object> lastRef = new AtomicReference<>(null);
+        final Observable<DisposableWrapper<ByteBuf>> contentSrc = 
+                Observable.range(1, 1000).map(idx -> Integer.toString(idx) + ".").compose(string2dwb());
         
-        final AtomicReference<Subscriber<? super DisposableWrapper<ByteBuf>>> subref = 
-                new AtomicReference<>();
+        final AtomicReference<Observable<? extends DisposableWrapper<ByteBuf>>> contentRef = new AtomicReference<>();
         
         writePolicyAware.setWritePolicy(new WritePolicy() {
             @Override
             public void applyTo(final Outboundable outboundable) {
+                
                 outboundable.setFlushPerWrite(true);
-                outboundable.sended().subscribe(obj -> {
-                    LOG.debug("sended :{}", obj);
-                    DisposableWrapperUtil.dispose(obj);
-                    if (obj == lastRef.get()) {
-                        // the last of current send batch
-                        final Subscriber<? super DisposableWrapper<ByteBuf>> subscriber = subref.get();
-                        buildContentAndSend(content, fillContent, lastRef, subscriber);
-                    }});
+                final ConnectableObservable<DisposableWrapper<ByteBuf>> endSwitch = 
+                        Observable.<DisposableWrapper<ByteBuf>>empty().replay();
+                
+                final Observable<? extends DisposableWrapper<ByteBuf>> cachedContent =
+                        contentOverSended(outboundable, contentSrc, ()-> endSwitch.connect()).cache();
+                cachedContent.subscribe();
+                contentRef.set(Observable.switchOnNext(Observable.just(cachedContent, endSwitch)));
             }});
         
         return Observable.just(new FullMessage() {
@@ -120,71 +105,73 @@ public class DemoResource {
 
                     @Override
                     public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                        return Observable.unsafeCreate(subscriber -> {
-                            subref.set(subscriber);
-                            buildContentAndSend(content, fillContent, lastRef, subscriber);
-                        });
+                        return contentRef.get();
                     }});
             }});
     }
-
-    private void buildContentAndSend(
-            final Queue<String> content, 
-            final Func1<Queue<String>, Boolean> fillContent,
-            final AtomicReference<Object> lastRef, 
-            final Subscriber<? super DisposableWrapper<ByteBuf>> subscriber) {
-        if (content.isEmpty()) {
-            if (!fillContent.call(content)) {
-                subscriber.onCompleted();
-                LOG.debug("content onCompleted");
-                return;
-            }
-        }
-        sendContentAndMark(content, lastRef, subscriber);
-    }
-
-    private void sendContentAndMark(
-            final Queue<String> content,
-            final AtomicReference<Object> lastRef,
-            final Subscriber<? super DisposableWrapper<ByteBuf>> subscriber) {
-        LOG.debug("content's count: {} with first element: {}", content.size(), content.peek());
-        final List<DisposableWrapper<ByteBuf>> dwbs = toDWBS(content, 5);
-        final DisposableWrapper<ByteBuf> last = dwbs.get(dwbs.size()-1);
-        LOG.debug("dwbs size: {}, last element: {}", dwbs.size(), last);
-        lastRef.set(last);
-        for (DisposableWrapper<ByteBuf> dwb : dwbs) {
-            subscriber.onNext(dwb);
-        }
-        dwbs.clear();
-    }
-
-    private final List<DisposableWrapper<ByteBuf>> toDWBS(final Queue<String> ids, final int maxBufCount) {
-        final List<DisposableWrapper<ByteBuf>> dwbs = new ArrayList<>(maxBufCount);
-        final ByteBufAllocator allocator = PooledByteBufAllocator.DEFAULT;
+    
+    private Observable<DisposableWrapper<ByteBuf>> contentOverSended(
+        final Outboundable outboundable,
+        final Observable<DisposableWrapper<ByteBuf>> contentSrc, 
+        final Action0 endAction) {
         
-        ByteBuf buf = allocator.buffer(8192, 8192);
-        String line = ids.peek();
-        
-        while (null != line) {
-            final byte[] bytes = line.getBytes(CharsetUtil.UTF_8);
-            if (bytes.length <= buf.maxWritableBytes()) {
-                buf.writeBytes(bytes);
-                ids.remove();
-            } else {
-                dwbs.add(RxNettys.wrap4release(buf));
-                if (dwbs.size() >= maxBufCount) {
-                    return dwbs;
+        final AtomicReference<Object> firstRef = new AtomicReference<>(null);
+        final AtomicInteger count = new AtomicInteger(0);
+    
+        return outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)).flatMap(obj -> {
+            if (null == firstRef.get() || obj == firstRef.get()) {
+                if (count.get() < 100) {
+                    count.incrementAndGet();
+                    firstRef.set(null);
+                    return contentSrc.doOnNext(dwb -> firstRef.compareAndSet(null, dwb));
+                } else {
+                    endAction.call();
+                    return Observable.empty();
                 }
-                buf = allocator.buffer(8192, 8192);
+            } else {
+                return Observable.empty();
             }
-            line = ids.peek();
-        }
-        if (buf.readableBytes() > 0) {
-            dwbs.add(RxNettys.wrap4release(buf));
-        } else {
-            buf.release();
-        }
-        return dwbs;
+        });
+    }
+
+    private Transformer<String, DisposableWrapper<ByteBuf>> string2dwb() {
+        final ByteBufAllocator allocator = PooledByteBufAllocator.DEFAULT;
+        final AtomicReference<ByteBuf> bufRef = new AtomicReference<>();
+        
+        return contents -> {
+            return contents.flatMap(s -> {
+                if (null == bufRef.get()) {
+                    bufRef.set(allocator.buffer(8192, 8192));
+                }
+                final byte[] bytes = s.getBytes(CharsetUtil.UTF_8);
+                if (bytes.length <= bufRef.get().maxWritableBytes()) {
+                    bufRef.get().writeBytes(bytes);
+                    return Observable.empty();
+                } else {
+                    final ByteBuf newbuf = allocator.buffer(8192, 8192);
+                    newbuf.writeBytes(bytes);
+                    return Observable.just(RxNettys.wrap4release(bufRef.getAndSet(newbuf)));
+                }
+            }, e -> Observable.error(e),
+            () -> {
+                if (null == bufRef.get()) {
+                    return Observable.empty();
+                } else {
+                    final ByteBuf last = bufRef.getAndSet(null);
+                    if (last.readableBytes() > 0) {
+                        return Observable.just(RxNettys.wrap4release(last));
+                    } else {
+                        last.release();
+                        return Observable.empty();
+                    }
+                }
+            }).doOnUnsubscribe(() -> {
+                final ByteBuf last = bufRef.getAndSet(null);
+                if (null != last) {
+                    last.release();
+                }
+            });
+        };
     }
 
     @Path("hello")
