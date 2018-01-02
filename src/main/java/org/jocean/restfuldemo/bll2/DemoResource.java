@@ -12,14 +12,10 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
+import org.jocean.http.StreamUtil;
 import org.jocean.http.WritePolicy;
-import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.idiom.Proxys;
-import org.jocean.idiom.Stateable;
-import org.jocean.idiom.StateableSupport;
-import org.jocean.idiom.StateableUtil;
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.MessageDecoder;
@@ -32,8 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -47,10 +41,7 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.CharsetUtil;
 import rx.Observable;
-import rx.Observable.Transformer;
-import rx.functions.Action0;
 import rx.functions.Func1;
-import rx.observables.ConnectableObservable;
 
 @Path("/newrest/")
 @Controller
@@ -59,11 +50,11 @@ public class DemoResource {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
     
-    static class Ctx {
+    static class DemoState {
         int startid;
         int endid;
         
-        Ctx(int startid, int endid) {
+        DemoState(int startid, int endid) {
             this.startid = startid;
             this.endid = endid;
         }
@@ -74,13 +65,31 @@ public class DemoResource {
             @QueryParam("end") final Integer endNum) {
 
         final AtomicReference<Observable<? extends DisposableWrapper<ByteBuf>>> contentRef = new AtomicReference<>();
-
+        final AtomicInteger begin = new AtomicInteger(0);
+        final AtomicInteger count = new AtomicInteger(0);
+        final int end = endNum.intValue();
+        
         writePolicyAware.setWritePolicy(new WritePolicy() {
             @Override
             public void applyTo(final Outboundable outboundable) {
                 outboundable.setFlushPerWrite(true);
-                contentRef.set(buildContent(endNum.intValue(), 
-                        outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj))));
+                contentRef.set(StreamUtil.<DemoState>buildContent(
+                        outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)),
+                        state -> {
+                            if (null == state || (state.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
+                                begin.set(null == state ? 1 : begin.get() + count.get());
+                                count.set(Math.min(8000, end - begin.get() + 1));
+                                LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
+                                return Observable.range(begin.get(), count.get()).compose(StreamUtil.src2dwb(
+                                        StreamUtil.allocStateableDWB(8192),
+                                        idx -> (Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
+                                        idx -> new DemoState(idx, idx),
+                                        (idx, st) -> st.endid = idx ));
+                            } else {
+                                return null;
+                            }
+                        },
+                        state -> end == state.endid));
             }
         });
 
@@ -117,86 +126,7 @@ public class DemoResource {
             }
         });
     }
-
-    private static Observable<? extends DisposableWrapper<ByteBuf>> buildContent(final int end, final Observable<Object> sended) {
-        final ConnectableObservable<DisposableWrapper<ByteBuf>> endSwitch = 
-                Observable.<DisposableWrapper<ByteBuf>>empty().replay();
-        
-        final Observable<? extends DisposableWrapper<ByteBuf>> cachedContent = 
-                sended.compose(sended2content2(end, () -> endSwitch.connect()))
-                .cache();
-        cachedContent.subscribe();
-        return Observable.switchOnNext(Observable.just(cachedContent, endSwitch));
-    }
     
-    private static Transformer<Object, DisposableWrapper<ByteBuf>> sended2content2(final int end, final Action0 onEnd) {
-        final AtomicInteger begin = new AtomicInteger(0);
-        final AtomicInteger count = new AtomicInteger(0);
-        
-        return sended->sended.flatMap(obj -> {
-            final Ctx ctx = StateableUtil.stateOf(obj);
-            
-            if (null == ctx || (ctx.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
-                begin.set(null == ctx ? 1 : begin.get() + count.get());
-                count.set(Math.min(8000, end - begin.get() + 1));
-                LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
-                return Observable.range(begin.get(), count.get()).compose(idx2dwb());
-            } else if (end == ctx.endid) {
-                onEnd.call();
-            }
-            return Observable.empty();
-        });
-    }
-    
-    private static Transformer<Integer, DisposableWrapper<ByteBuf>> idx2dwb() {
-        final ByteBufAllocator allocator = PooledByteBufAllocator.DEFAULT;
-        final AtomicReference<DisposableWrapper<ByteBuf>> ref = new AtomicReference<>();
-        
-        return contents -> {
-            return contents.flatMap(idx -> {
-                if (null == ref.get()) {
-                    ref.set(buildDWB(allocator.buffer(8192, 8192)));
-                    StateableUtil.setStateTo(new Ctx(idx, idx), ref.get());
-                }
-                final String s = Integer.toString(idx) + ".";
-                final byte[] bytes = s.getBytes(CharsetUtil.UTF_8);
-                if (bytes.length <= ref.get().unwrap().maxWritableBytes()) {
-                    ref.get().unwrap().writeBytes(bytes);
-                    StateableUtil.<Ctx>stateOf(ref.get()).endid = idx;
-                    return Observable.empty();
-                } else {
-                    final DisposableWrapper<ByteBuf> newbuf = buildDWB(allocator.buffer(8192, 8192));
-                    newbuf.unwrap().writeBytes(bytes);
-                    StateableUtil.setStateTo(new Ctx(idx, idx), newbuf);
-                    return Observable.just(ref.getAndSet(newbuf));
-                }
-            }, e -> Observable.error(e),
-            () -> {
-                if (null == ref.get()) {
-                    return Observable.empty();
-                } else {
-                    final DisposableWrapper<ByteBuf> last = ref.getAndSet(null);
-                    if (last.unwrap().readableBytes() > 0) {
-                        return Observable.just(last);
-                    } else {
-                        last.dispose();
-                        return Observable.empty();
-                    }
-                }
-            }).doOnUnsubscribe(() -> {
-                final DisposableWrapper<ByteBuf> last = ref.getAndSet(null);
-                if (null != last) {
-                    last.dispose();
-                }
-            });
-        };
-    }
-
-    private static DisposableWrapper<ByteBuf> buildDWB(final ByteBuf buf) {
-        return Proxys.mixin().mix(DisposableWrapper.class, RxNettys.wrap4release(buf))
-                .mix(Stateable.class, new StateableSupport()).build();
-    }
-
     @Path("hello")
     @OPTIONS
     @POST
