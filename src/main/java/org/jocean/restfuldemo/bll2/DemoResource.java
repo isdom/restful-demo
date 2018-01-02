@@ -16,6 +16,10 @@ import org.jocean.http.WritePolicy;
 import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
+import org.jocean.idiom.Proxys;
+import org.jocean.idiom.Stateable;
+import org.jocean.idiom.StateableSupport;
+import org.jocean.idiom.StateableUtil;
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.MessageDecoder;
@@ -45,7 +49,6 @@ import io.netty.util.CharsetUtil;
 import rx.Observable;
 import rx.Observable.Transformer;
 import rx.functions.Action0;
-import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.observables.ConnectableObservable;
 
@@ -56,8 +59,19 @@ public class DemoResource {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
     
+    static class Ctx {
+        int startid;
+        int endid;
+        
+        Ctx(int startid, int endid) {
+            this.startid = startid;
+            this.endid = endid;
+        }
+    }
+    
     @Path("stream")
-    public Object bigresp(final WritePolicyAware writePolicyAware) {
+    public Object bigresp(final WritePolicyAware writePolicyAware, 
+            @QueryParam("end") final Integer endNum) {
 
         final AtomicReference<Observable<? extends DisposableWrapper<ByteBuf>>> contentRef = new AtomicReference<>();
 
@@ -65,8 +79,8 @@ public class DemoResource {
             @Override
             public void applyTo(final Outboundable outboundable) {
                 outboundable.setFlushPerWrite(true);
-                contentRef.set(buildContent(outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)), 
-                        Observable.range(1, 1000).map(idx -> Integer.toString(idx) + ".").compose(string2dwb())));
+                contentRef.set(buildContent(endNum.intValue(), 
+                        outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj))));
             }
         });
 
@@ -104,82 +118,83 @@ public class DemoResource {
         });
     }
 
-    private Observable<? extends DisposableWrapper<ByteBuf>> buildContent(final Observable<Object> sended,
-            final Observable<DisposableWrapper<ByteBuf>> src) {
-        final ConnectableObservable<DisposableWrapper<ByteBuf>> endSwitch = Observable
-                .<DisposableWrapper<ByteBuf>>empty().replay();
-        final AtomicReference<Object> firstRef = new AtomicReference<>(null);
-        final AtomicInteger count = new AtomicInteger(0);
+    private static Observable<? extends DisposableWrapper<ByteBuf>> buildContent(final int end, final Observable<Object> sended) {
+        final ConnectableObservable<DisposableWrapper<ByteBuf>> endSwitch = 
+                Observable.<DisposableWrapper<ByteBuf>>empty().replay();
         
         final Observable<? extends DisposableWrapper<ByteBuf>> cachedContent = 
-                sended.compose(sended2content(
-                        obj -> null == firstRef.get() || obj == firstRef.get(), 
-                        () -> count.getAndIncrement() >= 100, 
-                        () -> {
-                            firstRef.set(null);
-                            return src.doOnNext(dwb -> firstRef.compareAndSet(null, dwb));
-                        },
-                        () -> endSwitch.connect()))
+                sended.compose(sended2content2(end, () -> endSwitch.connect()))
                 .cache();
         cachedContent.subscribe();
         return Observable.switchOnNext(Observable.just(cachedContent, endSwitch));
     }
     
-    private Transformer<Object, DisposableWrapper<ByteBuf>> sended2content(
-            final Func1<Object, Boolean> needNextContent,
-            final Func0<Boolean> isContentComplete, 
-            final Func0<Observable<DisposableWrapper<ByteBuf>>> buildContent,
-            final Action0 onEnd) {
+    private static Transformer<Object, DisposableWrapper<ByteBuf>> sended2content2(final int end, final Action0 onEnd) {
+        final AtomicInteger begin = new AtomicInteger(0);
+        final AtomicInteger count = new AtomicInteger(0);
+        
         return sended->sended.flatMap(obj -> {
-            if (needNextContent.call(obj)) {
-                if (!isContentComplete.call()) {
-                    return buildContent.call();
-                } else {
-                    onEnd.call();
-                }
+            final Ctx ctx = StateableUtil.stateOf(obj);
+            
+            if (null == ctx || (ctx.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
+                begin.set(null == ctx ? 1 : begin.get() + count.get());
+                count.set(Math.min(8000, end - begin.get() + 1));
+                LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
+                return Observable.range(begin.get(), count.get()).compose(idx2dwb());
+            } else if (end == ctx.endid) {
+                onEnd.call();
             }
             return Observable.empty();
         });
     }
-
-    private Transformer<String, DisposableWrapper<ByteBuf>> string2dwb() {
+    
+    private static Transformer<Integer, DisposableWrapper<ByteBuf>> idx2dwb() {
         final ByteBufAllocator allocator = PooledByteBufAllocator.DEFAULT;
-        final AtomicReference<ByteBuf> bufRef = new AtomicReference<>();
+        final AtomicReference<DisposableWrapper<ByteBuf>> ref = new AtomicReference<>();
         
         return contents -> {
-            return contents.flatMap(s -> {
-                if (null == bufRef.get()) {
-                    bufRef.set(allocator.buffer(8192, 8192));
+            return contents.flatMap(idx -> {
+                if (null == ref.get()) {
+                    ref.set(buildDWB(allocator.buffer(8192, 8192)));
+                    StateableUtil.setStateTo(new Ctx(idx, idx), ref.get());
                 }
+                final String s = Integer.toString(idx) + ".";
                 final byte[] bytes = s.getBytes(CharsetUtil.UTF_8);
-                if (bytes.length <= bufRef.get().maxWritableBytes()) {
-                    bufRef.get().writeBytes(bytes);
+                if (bytes.length <= ref.get().unwrap().maxWritableBytes()) {
+                    ref.get().unwrap().writeBytes(bytes);
+                    StateableUtil.<Ctx>stateOf(ref.get()).endid = idx;
                     return Observable.empty();
                 } else {
-                    final ByteBuf newbuf = allocator.buffer(8192, 8192);
-                    newbuf.writeBytes(bytes);
-                    return Observable.just(RxNettys.wrap4release(bufRef.getAndSet(newbuf)));
+                    final DisposableWrapper<ByteBuf> newbuf = buildDWB(allocator.buffer(8192, 8192));
+                    newbuf.unwrap().writeBytes(bytes);
+                    StateableUtil.setStateTo(new Ctx(idx, idx), newbuf);
+                    return Observable.just(ref.getAndSet(newbuf));
                 }
             }, e -> Observable.error(e),
             () -> {
-                if (null == bufRef.get()) {
+                if (null == ref.get()) {
                     return Observable.empty();
                 } else {
-                    final ByteBuf last = bufRef.getAndSet(null);
-                    if (last.readableBytes() > 0) {
-                        return Observable.just(RxNettys.wrap4release(last));
+                    final DisposableWrapper<ByteBuf> last = ref.getAndSet(null);
+                    if (last.unwrap().readableBytes() > 0) {
+                        return Observable.just(last);
                     } else {
-                        last.release();
+                        last.dispose();
                         return Observable.empty();
                     }
                 }
             }).doOnUnsubscribe(() -> {
-                final ByteBuf last = bufRef.getAndSet(null);
+                final DisposableWrapper<ByteBuf> last = ref.getAndSet(null);
                 if (null != last) {
-                    last.release();
+                    last.dispose();
                 }
             });
         };
+    }
+
+    private static DisposableWrapper<ByteBuf> buildDWB(final ByteBuf buf) {
+        return Proxys.mixin().mix(DisposableWrapper.class, RxNettys.wrap4release(buf))
+                .mix(Stateable.class, new StateableSupport()).build();
     }
 
     @Path("hello")
