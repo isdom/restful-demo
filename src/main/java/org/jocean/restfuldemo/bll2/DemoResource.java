@@ -81,7 +81,7 @@ public class DemoResource {
                                 count.set(Math.min(8000, end - begin.get() + 1));
                                 LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
                                 return Observable.range(begin.get(), count.get()).compose(StreamUtil.src2dwb(
-                                        StreamUtil.allocStateableDWB(8192),
+                                        ()->StreamUtil.allocStateableDWB(8192),
                                         idx -> (Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
                                         idx -> new DemoState(idx, idx),
                                         (idx, st) -> st.endid = idx ));
