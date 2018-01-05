@@ -1,7 +1,6 @@
 package org.jocean.restfuldemo.bll2;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.inject.Inject;
 import javax.ws.rs.HeaderParam;
@@ -13,7 +12,7 @@ import javax.ws.rs.QueryParam;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
 import org.jocean.http.StreamUtil;
-import org.jocean.http.WritePolicy;
+import org.jocean.http.WriteCtrl;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.netty.BlobRepo;
@@ -21,7 +20,6 @@ import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.MessageDecoder;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
-import org.jocean.svr.WritePolicyAware;
 import org.jocean.svr._100ContinueAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,37 +59,31 @@ public class DemoResource {
     }
     
     @Path("stream")
-    public Object bigresp(final WritePolicyAware writePolicyAware, 
-            @QueryParam("end") final Integer endNum) {
+    public Object bigresp(final WriteCtrl ctrl, @QueryParam("end") final Integer endNum) {
 
-        final AtomicReference<Observable<? extends DisposableWrapper<ByteBuf>>> contentRef = new AtomicReference<>();
         final AtomicInteger begin = new AtomicInteger(0);
         final AtomicInteger count = new AtomicInteger(0);
         final int end = endNum.intValue();
+        final Observable<? extends DisposableWrapper<ByteBuf>> content = 
+        StreamUtil.<DemoState>buildContent(
+                ctrl.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)),
+                state -> {
+                    if (null == state || (state.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
+                        begin.set(null == state ? 1 : begin.get() + count.get());
+                        count.set(Math.min(8000, end - begin.get() + 1));
+                        LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
+                        return Observable.range(begin.get(), count.get()).compose(StreamUtil.src2dwb(
+                                ()->StreamUtil.allocStateableDWB(8192),
+                                idx -> (Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
+                                idx -> new DemoState(idx, idx),
+                                (idx, st) -> st.endid = idx ));
+                    } else {
+                        return null;
+                    }
+                },
+                state -> end == state.endid);
         
-        writePolicyAware.setWritePolicy(new WritePolicy() {
-            @Override
-            public void applyTo(final Outboundable outboundable) {
-                outboundable.setFlushPerWrite(true);
-                contentRef.set(StreamUtil.<DemoState>buildContent(
-                        outboundable.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)),
-                        state -> {
-                            if (null == state || (state.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
-                                begin.set(null == state ? 1 : begin.get() + count.get());
-                                count.set(Math.min(8000, end - begin.get() + 1));
-                                LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
-                                return Observable.range(begin.get(), count.get()).compose(StreamUtil.src2dwb(
-                                        ()->StreamUtil.allocStateableDWB(8192),
-                                        idx -> (Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
-                                        idx -> new DemoState(idx, idx),
-                                        (idx, st) -> st.endid = idx ));
-                            } else {
-                                return null;
-                            }
-                        },
-                        state -> end == state.endid));
-            }
-        });
+        ctrl.setFlushPerWrite(true);
 
         return Observable.just(new FullMessage() {
 
@@ -120,7 +112,7 @@ public class DemoResource {
 
                     @Override
                     public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                        return contentRef.get();
+                        return content;
                     }
                 });
             }
