@@ -11,12 +11,11 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
+import org.jocean.http.StreamUtil;
 import org.jocean.http.WriteCtrl;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.idiom.StateableUtil;
 import org.jocean.netty.BlobRepo;
-import org.jocean.restfuldemo.StreamUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.MessageDecoder;
 import org.jocean.svr.ResponseUtil;
@@ -66,74 +65,23 @@ public class DemoResource {
         }
     }
     
-    private Func1<DemoState, Observable<DisposableWrapper<ByteBuf>>> state2dwbs(
-            final AtomicInteger begin,
-            final AtomicInteger count, final int end) {
-        return state -> {
-            LOG.debug("on state: {}", state);
-            if (null == state || (state.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
-                begin.set(null == state ? 1 : begin.get() + count.get());
-                count.set(Math.min(500, end - begin.get() + 1));
-                LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
-                return Observable.range(begin.get(), count.get()).doOnCompleted(()->{
-                  LOG.info("range begin ({}) count ({}) end", begin.get(), count.get());
-                }).compose(StreamUtil.src2dwb(
-                        () -> StreamUtil.allocStateableDWB(8192),
-                        idx -> (Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
-                        idx -> new DemoState(idx, idx),
-                        (idx, st) -> st.endid = idx ));
-            } else {
-                return null;
-            }
-        };
-    }
-    
     @Path("stream")
     public Object bigresp(final WriteCtrl ctrl, @QueryParam("end") final Integer endNum) {
 
         final AtomicInteger begin = new AtomicInteger(0);
         final AtomicInteger count = new AtomicInteger(0);
         final int end = endNum.intValue();
-        final Observable<? extends DisposableWrapper<ByteBuf>> content = 
-        /*
-                ctrl.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj))
-                    .flatMap(obj -> {
-                        final DemoState state = StateableUtil.stateOf(obj);
-                        
-                        final Observable<DisposableWrapper<ByteBuf>> dwbs = state2dwbs.call(state);
-                        if (null != dwbs) {
-                            LOG.info("sended2content: null != dwbs");
-                            return dwbs;
-                        }
-                        LOG.info("sended2content: Observable.empty()");
-                        return Observable.empty();
-                    }).cache();
-        content.subscribe();
-        */
         
-        StreamUtil.<DemoState>buildContent(
-                ctrl.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)),
-                state -> {
-                    LOG.debug("on state: {}", state);
-                    if (null == state || (state.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
-                        begin.set(null == state ? 1 : begin.get() + count.get());
-                        count.set(Math.min(500, end - begin.get() + 1));
-                        LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
-                        return Observable.range(begin.get(), count.get()).doOnCompleted(()->{
-                          LOG.info("range begin ({}) count ({}) end", begin.get(), count.get());
-                        }).compose(StreamUtil.src2dwb(
-                                ()-> StreamUtil.allocStateableDWB(8192),
-                                idx ->(Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
-                                idx -> new DemoState(idx, idx),
-                                (idx, st) -> st.endid = idx ));
-                    } else {
-                        return null;
-                    }
-                },
-                state -> end == state.endid)
-        .doOnNext(dwb -> {
-            LOG.info("buildContent : onNext {}", dwb);
-        });
+        ctrl.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)).subscribe();
+        
+        final Observable<? extends DisposableWrapper<ByteBuf>> content = 
+            StreamUtil.<DemoState>buildContent(
+                    ctrl.sended(),
+                    state2dwb(begin, count, end),
+                    state -> end == state.endid)
+                .doOnNext(dwb -> {
+                    LOG.info("buildContent : onNext {}", dwb);
+                });
         
         ctrl.setFlushPerWrite(true);
 
@@ -169,6 +117,27 @@ public class DemoResource {
                 });
             }
         });
+    }
+
+    private Func1<DemoState, Observable<DisposableWrapper<ByteBuf>>> state2dwb(
+            final AtomicInteger begin,
+            final AtomicInteger count, 
+            final int end) {
+        return state -> {
+            LOG.debug("obj with state: {} has been sended", state);
+            if (null == state || (state.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
+                begin.set(null == state ? 1 : begin.get() + count.get());
+                count.set(Math.min(500, end - begin.get() + 1));
+                LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
+                return Observable.range(begin.get(), count.get()).compose(StreamUtil.src2dwb(
+                            ()-> StreamUtil.allocStateableDWB(8192),
+                            idx -> (Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
+                            idx -> new DemoState(idx, idx),
+                            (idx, st) -> st.endid = idx ));
+            } else {
+                return null;
+            }
+        };
     }
     
     @Path("hello")
