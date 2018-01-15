@@ -11,6 +11,7 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
+import org.jocean.http.MessageUtil;
 import org.jocean.http.StreamUtil;
 import org.jocean.http.WriteCtrl;
 import org.jocean.idiom.DisposableWrapper;
@@ -159,6 +160,29 @@ public class DemoResource {
         return Observable.just("hi, ", name, "'s ", ua).compose(urc);
     }
 
+    static class Formed {
+        
+        @QueryParam("name")
+        public String name;
+        
+        @QueryParam("sex")
+        public String sex;
+
+        @Override
+        public String toString() {
+            StringBuilder builder = new StringBuilder();
+            builder.append("Formed [name=").append(name).append(", sex=").append(sex).append("]");
+            return builder.toString();
+        }
+    }
+    
+    @Path("wwwform")
+    public Observable<String> wwwform(final Observable<MessageBody> omb) {
+        return omb.flatMap(body -> MessageUtil.decodeContentAs(body.content(),
+                        MessageUtil::unserializeAsX_WWW_FORM_URLENCODED, Formed.class))
+                .map(formed -> formed.toString());
+    }
+    
     @Path("null")
     public Observable<String> returnNull(final Observable<HttpObject> req) {
         return null;
