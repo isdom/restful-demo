@@ -7,6 +7,7 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.OPTIONS;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
 import org.jocean.http.FullMessage;
@@ -64,6 +65,14 @@ public class DemoResource {
             builder.append("DemoState [startid=").append(startid).append(", endid=").append(endid).append("]");
             return builder.toString();
         }
+    }
+    
+    @Path("from/{begin}/to/{end}")
+    public Observable<String> pathparam(@PathParam("begin") final String begin, @PathParam("end") final String end,
+            final Observable<MessageBody> omb) {
+        LOG.info("from {} to {}", begin, end);
+        return omb.flatMap(body -> MessageUtil.<String>decodeContentAs(body.content(),
+                (buf, cls) -> MessageUtil.parseContentAsString(buf), String.class));
     }
     
     @Path("stream")

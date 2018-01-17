@@ -18,7 +18,7 @@ children:
     parameters: |
       http.port = 8080
       http.address=0.0.0.0
-      inbound.pathpattern=/welcome/[{|}|/|\\w]*
+      inbound.pathpattern=/welcome/
       inbound.category=demo
     children:
       - name: feature_logging
@@ -53,7 +53,7 @@ children:
     parameters: |
       http.port = 9090
       http.address=0.0.0.0
-      restin.pathpattern=/newrest/[{|}|/|\\w]*
+      restin.pathpattern=/newrest/
       restin.category = demo
     children:
       - name: feature_logging
