@@ -4,7 +4,6 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
         http://www.springframework.org/schema/beans/spring-beans.xsd">
         
-    <bean class="org.jocean.restfuldemo.bll2.DemoResource"
-          scope="prototype" />
+    <bean class="org.jocean.restfuldemo.bll.DemoResource" scope="prototype" />
           
 </beans>

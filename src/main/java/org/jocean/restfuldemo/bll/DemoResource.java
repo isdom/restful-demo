@@ -1,4 +1,4 @@
-package org.jocean.restfuldemo.bll2;
+package org.jocean.restfuldemo.bll;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
