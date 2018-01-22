@@ -1,6 +1,6 @@
 name: units
 parameters: |
-  __spring.xml=http/httpserver.xml,jocean/eventengine.xml,http/httpclient.xml,http/signal.xml,unit/flowstats.xml,unit/apistats.xml
+  __spring.xml=http/httpserver.xml,http/httpclient.xml,http/signal.xml,unit/apistats.xml
   # disable assembly
   http.server.inbound.blocksize = -1
   # set recv buffer size 8k
