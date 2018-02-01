@@ -9,6 +9,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
@@ -19,7 +20,6 @@ import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
-import org.jocean.svr.MessageDecoder;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr._100ContinueAware;
@@ -198,9 +198,10 @@ public class DemoResource {
     }
     
     @Path("asjson")
-    public Observable<Object> asjson(final Observable<MessageDecoder> omd) {
-        return omd.flatMap(decoder -> decoder.<DemoRequest>decodeJsonAs(DemoRequest.class))
-            .map(req -> ResponseUtil.responseAsJson(200, req));
+    public Observable<Object> asjson(final Observable<MessageBody> omb) {
+        return omb.flatMap(body -> MessageUtil.<DemoRequest>decodeJsonAs(body, DemoRequest.class))
+        .flatMap(req -> ResponseUtil.response(200)
+        .compose(MessageUtil.addBody(MessageUtil.toBody(req, MediaType.APPLICATION_JSON, MessageUtil::serializeToJson))));
     }
     
     @Path("foo")
