@@ -11,13 +11,17 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
+import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
 import org.jocean.http.StreamUtil;
 import org.jocean.http.WriteCtrl;
+import org.jocean.http.client.HttpClient;
+import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
+import org.jocean.idiom.Terminable;
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.ResponseUtil;
@@ -204,6 +208,16 @@ public class DemoResource {
         .compose(MessageUtil.addBody(MessageUtil.toBody(req, MediaType.APPLICATION_JSON, MessageUtil::serializeToJson))));
     }
     
+    @Path("proxy")
+    public Observable<Object> proxy(@QueryParam("uri") final String uri, final WriteCtrl ctrl, final Terminable terminable) {
+        ctrl.setFlushPerWrite(true);
+        return this._finder.find(HttpClient.class)
+                .flatMap(client -> MessageUtil.interaction(client).uri(uri).path("/")
+                        .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution()
+                        .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
+                        .flatMap(interaction -> interaction.execute()));
+    }
+    
     @Path("foo")
     public Observable<String> foo(
             @QueryParam("name") final String name,
@@ -270,6 +284,9 @@ public class DemoResource {
     
     @Inject
     private BlobRepo _blobRepo;
+    
+    @Inject
+    private BeanFinder _finder;
     
 //    @HeaderParam("X-Forwarded-For")
 //    private String _peerip;
