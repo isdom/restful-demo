@@ -204,8 +204,7 @@ public class DemoResource {
     @Path("asjson")
     public Observable<Object> asjson(final Observable<MessageBody> omb) {
         return omb.flatMap(body -> MessageUtil.<DemoRequest>decodeJsonAs(body, DemoRequest.class))
-        .flatMap(req -> ResponseUtil.response(200)
-        .compose(MessageUtil.addBody(MessageUtil.toBody(req, MediaType.APPLICATION_JSON, MessageUtil::serializeToJson))));
+        .flatMap(req -> ResponseUtil.response().body(req, ResponseUtil.TOJSON).build());
     }
     
     @Path("proxy")
