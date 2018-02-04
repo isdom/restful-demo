@@ -13,8 +13,8 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.io.IOUtils;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
@@ -225,6 +225,9 @@ public class DemoResource {
         final ByteBufArrayOutputStream bbaos = new ByteBufArrayOutputStream(PooledByteBufAllocator.DEFAULT, 8192);
         final ZipOutputStream zipos = new ZipOutputStream(bbaos, CharsetUtil.UTF_8);
         zipos.setLevel(Deflater.BEST_COMPRESSION);
+        
+        terminable.doOnTerminate(() -> IOUtils.closeQuietly(zipos));
+//        terminable.doOnTerminate(() -> IOUtils.closeQuietly(bbaos));
         
         return this._finder.find(HttpClient.class)
                 .flatMap(client -> MessageUtil.interaction(client).uri(uri).path("/")
