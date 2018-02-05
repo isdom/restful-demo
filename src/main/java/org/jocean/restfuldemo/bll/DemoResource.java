@@ -1,10 +1,6 @@
 package org.jocean.restfuldemo.bll;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.zip.Deflater;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import javax.inject.Inject;
 import javax.ws.rs.HeaderParam;
@@ -14,7 +10,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
-import org.apache.commons.io.IOUtils;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
@@ -22,13 +17,11 @@ import org.jocean.http.MessageUtil;
 import org.jocean.http.StreamUtil;
 import org.jocean.http.WriteCtrl;
 import org.jocean.http.client.HttpClient;
-import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.Terminable;
 import org.jocean.netty.BlobRepo;
-import org.jocean.netty.util.ByteBufArrayOutputStream;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
@@ -37,13 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 
-import com.google.common.io.ByteStreams;
-
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMessage;
@@ -54,7 +43,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import rx.Observable;
 import rx.functions.Func1;
@@ -222,12 +210,6 @@ public class DemoResource {
     @Path("proxy")
     public Observable<Object> proxy(@QueryParam("uri") final String uri, final WriteCtrl ctrl, final Terminable terminable) {
         ctrl.setFlushPerWrite(true);
-        final ByteBufArrayOutputStream bbaos = new ByteBufArrayOutputStream(PooledByteBufAllocator.DEFAULT, 8192);
-        final ZipOutputStream zipos = new ZipOutputStream(bbaos, CharsetUtil.UTF_8);
-        zipos.setLevel(Deflater.BEST_COMPRESSION);
-        
-        terminable.doOnTerminate(() -> IOUtils.closeQuietly(zipos));
-//        terminable.doOnTerminate(() -> IOUtils.closeQuietly(bbaos));
         
         return this._finder.find(HttpClient.class)
                 .flatMap(client -> MessageUtil.interaction(client).uri(uri).path("/")
@@ -235,76 +217,7 @@ public class DemoResource {
                         .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
                         .flatMap(interaction -> interaction.execute()))
                 .map(DisposableWrapperUtil.unwrap())
-                .flatMap(RxNettys.splitFullHttpMessage())
-                .flatMap(httpobj -> {
-                    if (httpobj instanceof HttpResponse) {
-                        return processResponse(zipos, (HttpResponse)httpobj, "demo.zip", "123.txt");
-                    } else if (httpobj instanceof HttpContent) {
-                        return zipContent(zipos, bbaos, (HttpContent)httpobj, terminable);
-                    } else {
-                        return Observable.just(httpobj);
-                    }},
-                    e -> Observable.error(e),
-                    () -> finishZip(zipos, bbaos, terminable)
-                );
-    }
-
-    private Observable<? extends Object> finishZip(final ZipOutputStream zipos, 
-            final ByteBufArrayOutputStream bbaos,
-            final Terminable terminable) {
-        try {
-            zipos.closeEntry();
-            zipos.finish();
-            return Observable.concat(bbaos2dwbs(bbaos, terminable), Observable.just(LastHttpContent.EMPTY_LAST_CONTENT));
-        } catch (Exception e) {
-            return Observable.error(e);
-        } finally {
-            try {
-                zipos.close();
-            } catch (IOException e1) {
-            }
-        }
-    }
-
-    private Observable<? extends Object> zipContent(final ZipOutputStream zipos, 
-            final ByteBufArrayOutputStream bbaos,
-            HttpContent content, 
-            final Terminable terminable) {
-        if (content.content().readableBytes() == 0) {
-            return Observable.empty();
-        }
-        final ByteBufInputStream is = new ByteBufInputStream(content.content());
-        try {
-            final byte[] bytes = ByteStreams.toByteArray(is);
-            zipos.write(bytes);
-            zipos.flush();
-            return bbaos2dwbs(bbaos, terminable);
-        } catch (Exception e) {
-            return Observable.error(e);
-        }
-    }
-
-    private Observable<DisposableWrapper<ByteBuf>> bbaos2dwbs(
-            final ByteBufArrayOutputStream bbaos,
-            final Terminable terminable) {
-        return Observable.from(bbaos.buffers())
-                .map(DisposableWrapperUtil.<ByteBuf>wrap(RxNettys.<ByteBuf>disposerOf(), terminable));
-    }
-
-    private Observable<? extends Object> processResponse(final ZipOutputStream zipos, 
-            final HttpResponse resp, 
-            final String zipedName,
-            final String contentName) {
-        HttpUtil.setTransferEncodingChunked(resp, true);
-        resp.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_OCTET_STREAM);
-        resp.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=" + zipedName);
-        try {
-            final ZipEntry entry = new ZipEntry(contentName);
-            zipos.putNextEntry(entry);
-        } catch (Exception e) {
-            return Observable.error(e);
-        }
-        return Observable.just(resp);
+                .compose(ResponseUtil.zipped("demo.zip", "123.txt", terminable, PooledByteBufAllocator.DEFAULT, 8192));
     }
     
     @Path("foo")
