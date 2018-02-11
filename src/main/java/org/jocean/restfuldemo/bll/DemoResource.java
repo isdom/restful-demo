@@ -217,7 +217,8 @@ public class DemoResource {
                         .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
                         .flatMap(interaction -> interaction.execute()))
                 .map(DisposableWrapperUtil.unwrap())
-                .compose(ResponseUtil.zipped("demo.zip", "123.txt", terminable, PooledByteBufAllocator.DEFAULT, 8192));
+                .compose(ResponseUtil.toZip("demo.zip", "123.txt", terminable, 
+                        () -> PooledByteBufAllocator.DEFAULT.buffer(8192, 8192)));
     }
     
     @Path("foo")
