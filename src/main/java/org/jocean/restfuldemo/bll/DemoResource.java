@@ -218,7 +218,7 @@ public class DemoResource {
                         .flatMap(interaction -> interaction.execute()))
                 .map(DisposableWrapperUtil.unwrap())
                 .compose(ResponseUtil.toZip("demo.zip", "123.txt", terminable, 
-                        () -> PooledByteBufAllocator.DEFAULT.buffer(8192, 8192)));
+                        () -> PooledByteBufAllocator.DEFAULT.buffer(8192, 8192), 8192));
     }
     
     @Path("foo")
