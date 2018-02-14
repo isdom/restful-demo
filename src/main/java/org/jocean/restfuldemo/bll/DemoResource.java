@@ -1,5 +1,8 @@
 package org.jocean.restfuldemo.bll;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
@@ -53,6 +56,27 @@ public class DemoResource {
 
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
+    
+    @Path("metaof/{obj}")
+    public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname) {
+        return _blobRepo.getSimplifiedObjectMeta(objname).map(meta -> {
+            LOG.info("meta:{}", meta);
+            if (null != meta.getLastModified()) {
+                final Instant last = meta.getLastModified().toInstant();
+                final Instant lastDay = last.truncatedTo(ChronoUnit.DAYS);
+                final Instant now = Instant.now();
+                final Instant nowDay = now.truncatedTo(ChronoUnit.DAYS);
+                final Duration duration = Duration.between(lastDay, nowDay);
+                return "last:" + last
+                    +" \nlastDay:" + lastDay
+                    + "\nnow:" + now
+                    + "\nnowDay:" + nowDay
+                    + "\nDuration in days:" + duration.toDays();
+            } else {
+                return "Not exist";
+            }
+        });
+    }
     
     static class DemoState {
         int startid;
