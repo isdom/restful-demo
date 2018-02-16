@@ -28,6 +28,7 @@ import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
+import org.jocean.svr.ZipUtil;
 import org.jocean.svr._100ContinueAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -241,7 +242,7 @@ public class DemoResource {
                         .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
                         .flatMap(interaction -> interaction.execute()))
                 .map(DisposableWrapperUtil.unwrap())
-                .compose(ResponseUtil.toZip("demo.zip", "123.txt", terminable, 
+                .compose(ZipUtil.toZip("demo.zip", "123.txt", terminable, 
                         () -> PooledByteBufAllocator.DEFAULT.buffer(8192, 8192), 8192));
     }
     
