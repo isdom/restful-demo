@@ -20,6 +20,7 @@ import org.jocean.http.MessageUtil;
 import org.jocean.http.StreamUtil;
 import org.jocean.http.WriteCtrl;
 import org.jocean.http.client.HttpClient;
+import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
@@ -242,8 +243,11 @@ public class DemoResource {
                         .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
                         .flatMap(interaction -> interaction.execute()))
                 .map(DisposableWrapperUtil.unwrap())
-                .compose(ZipUtil.toZip("demo.zip", "123.txt", terminable, 
-                        () -> PooledByteBufAllocator.DEFAULT.buffer(8192, 8192), 8192));
+                .compose(ZipUtil.toZip2("demo.zip", "123.txt", 
+                        terminable, 
+                        () -> DisposableWrapperUtil.disposeOn(terminable,
+                                RxNettys.wrap4release(PooledByteBufAllocator.DEFAULT.buffer(8192, 8192))),
+                        8192));
     }
     
     @Path("foo")
