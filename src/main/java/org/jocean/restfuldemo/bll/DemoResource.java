@@ -20,7 +20,6 @@ import org.jocean.http.MessageUtil;
 import org.jocean.http.StreamUtil;
 import org.jocean.http.WriteCtrl;
 import org.jocean.http.client.HttpClient;
-import org.jocean.http.util.RxNettys;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
@@ -36,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -48,6 +46,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import rx.Observable;
 import rx.functions.Func1;
@@ -239,15 +238,22 @@ public class DemoResource {
         
         return this._finder.find(HttpClient.class)
                 .flatMap(client -> MessageUtil.interaction(client).uri(uri).path("/")
-                        .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution()
-                        .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
-                        .flatMap(interaction -> interaction.execute()))
-                .map(DisposableWrapperUtil.unwrap())
-                .compose(ZipUtil.toZip2("demo.zip", "123.txt", 
-                        terminable, 
-                        () -> DisposableWrapperUtil.disposeOn(terminable,
-                                RxNettys.wrap4release(PooledByteBufAllocator.DEFAULT.buffer(8192, 8192))),
-                        8192));
+                        .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution())
+                .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
+                .flatMap(interaction -> interaction.execute())
+                .compose(MessageUtil.asBody())
+                .map(body -> body.content().map(DisposableWrapperUtil.unwrap()))
+                .flatMap(content -> {
+                    final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+                    HttpUtil.setTransferEncodingChunked(resp, true);
+                    resp.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_OCTET_STREAM);
+                    resp.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=demo.zip");
+                    
+                    return Observable.concat(Observable.just(resp), 
+                        ZipUtil.zip(new ZipUtil.ZipCtx(ZipUtil.pooledAllocator(terminable, 8192), 512), 
+                                Observable.just(ZipUtil.entry("123.txt").content(content).build())),
+                        Observable.just(LastHttpContent.EMPTY_LAST_CONTENT));
+                });
     }
     
     @Path("foo")
