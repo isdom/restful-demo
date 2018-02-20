@@ -46,7 +46,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import rx.Observable;
 import rx.functions.Func1;
@@ -243,19 +242,44 @@ public class DemoResource {
                 .flatMap(interaction -> interaction.execute())
                 .compose(MessageUtil.asBody())
                 .map(body -> body.content().map(DisposableWrapperUtil.unwrap()))
-                .flatMap(content -> {
+                .map(content -> {
                     final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
                     HttpUtil.setTransferEncodingChunked(resp, true);
-                    resp.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_OCTET_STREAM);
                     resp.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=demo.zip");
-                    
+                    return new FullMessage() {
+                        @Override
+                        public <M extends HttpMessage> M message() {
+                            return (M)resp;
+                        }
+
+                        @Override
+                        public Observable<? extends MessageBody> body() {
+                            return Observable.just(new MessageBody() {
+                                @Override
+                                public String contentType() {
+                                    return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+                                }
+                                @Override
+                                public int contentLength() {
+                                    return -1;
+                                }
+                                @Override
+                                public Observable<? extends DisposableWrapper<ByteBuf>> content() {
+                                    return ZipUtil.zip().allocator(ZipUtil.pooledAllocator(terminable, 8192))
+                                            .entries(Observable.just(ZipUtil.entry("123.txt").content(content).build()))
+                                            .hookcloser(closer -> terminable.doOnTerminate(closer))
+                                            .build();
+                                }});
+                        }};
+                    /*
                     return Observable.concat(Observable.just(resp), 
                         ZipUtil.zip().allocator(ZipUtil.pooledAllocator(terminable, 8192))
                             .entries(Observable.just(ZipUtil.entry("123.txt").content(content).build()))
                             .hookcloser(closer -> terminable.doOnTerminate(closer))
                             .build(),
                         Observable.just(LastHttpContent.EMPTY_LAST_CONTENT));
-                });
+                    */
+            });
     }
     
     @Path("foo")
