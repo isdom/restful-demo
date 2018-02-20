@@ -250,8 +250,10 @@ public class DemoResource {
                     resp.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=demo.zip");
                     
                     return Observable.concat(Observable.just(resp), 
-                        ZipUtil.zip(new ZipUtil.ZipCtx(ZipUtil.pooledAllocator(terminable, 8192), 512), 
-                                Observable.just(ZipUtil.entry("123.txt").content(content).build())),
+                        ZipUtil.zip().allocator(ZipUtil.pooledAllocator(terminable, 8192))
+                            .entries(Observable.just(ZipUtil.entry("123.txt").content(content).build()))
+                            .hookcloser(closer -> terminable.doOnTerminate(closer))
+                            .build(),
                         Observable.just(LastHttpContent.EMPTY_LAST_CONTENT));
                 });
     }
