@@ -265,7 +265,7 @@ public class DemoResource {
                                 }
                                 @Override
                                 public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                                    return ZipUtil.zip().allocator(ZipUtil.pooledAllocator(terminable, 8192))
+                                    return ZipUtil.zip().allocator(MessageUtil.pooledAllocator(terminable, 8192))
                                             .entries(Observable.just(ZipUtil.entry("123.txt").content(content).build()))
                                             .hookcloser(closer -> terminable.doOnTerminate(closer))
                                             .build();
