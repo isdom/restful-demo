@@ -26,6 +26,7 @@ import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.Terminable;
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
+import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
@@ -232,7 +233,8 @@ public class DemoResource {
     }
     
     @Path("proxy")
-    public Observable<Object> proxy(@QueryParam("uri") final String uri, final WriteCtrl ctrl, final Terminable terminable) {
+    public Observable<Object> proxy(@QueryParam("uri") final String uri, final WriteCtrl ctrl, final Terminable terminable,
+            final AllocatorBuilder builder) {
         ctrl.setFlushPerWrite(true);
         
         return this._finder.find(HttpClient.class)
@@ -265,7 +267,7 @@ public class DemoResource {
                                 }
                                 @Override
                                 public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                                    return ZipUtil.zip().allocator(MessageUtil.pooledAllocator(terminable, 8192))
+                                    return ZipUtil.zip().allocator(builder.build(8192))
                                             .entries(Observable.just(ZipUtil.entry("123.txt").content(content).build()))
                                             .hookcloser(closer -> terminable.doOnTerminate(closer))
                                             .build();
