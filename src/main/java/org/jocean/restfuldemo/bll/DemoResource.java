@@ -271,14 +271,6 @@ public class DemoResource {
                                             .build();
                                 }});
                         }};
-                    /*
-                    return Observable.concat(Observable.just(resp), 
-                        ZipUtil.zip().allocator(ZipUtil.pooledAllocator(terminable, 8192))
-                            .entries(Observable.just(ZipUtil.entry("123.txt").content(content).build()))
-                            .hookcloser(closer -> terminable.doOnTerminate(closer))
-                            .build(),
-                        Observable.just(LastHttpContent.EMPTY_LAST_CONTENT));
-                    */
             });
     }
     
