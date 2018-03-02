@@ -13,6 +13,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
+import org.jocean.http.BodyBuilder;
+import org.jocean.http.ContentEncoder;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
@@ -227,9 +229,9 @@ public class DemoResource {
     }
     
     @Path("asjson")
-    public Observable<Object> asjson(final Observable<MessageBody> omb) {
+    public Observable<Object> asjson(final Observable<MessageBody> omb, final BodyBuilder bb) {
         return omb.flatMap(body -> MessageUtil.<DemoRequest>decodeJsonAs(body, DemoRequest.class))
-        .flatMap(req -> ResponseUtil.response().body(req, ResponseUtil.TOJSON).build());
+        .flatMap(req -> ResponseUtil.response().body(bb.build(req, ContentEncoder.Const.TOJSON)).build());
     }
     
     @Path("proxy")
