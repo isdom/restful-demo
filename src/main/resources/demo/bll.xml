@@ -4,6 +4,9 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
         http://www.springframework.org/schema/beans/spring-beans.xsd">
         
-    <bean class="org.jocean.restfuldemo.bll.DemoResource" scope="prototype" />
+    <!-- auto scan package org.jocean.restfuldemo.bll.* -->
+    <context:component-scan annotation-config="false"
+        base-package="org.jocean.restfuldemo.bll"
+    />
           
 </beans>

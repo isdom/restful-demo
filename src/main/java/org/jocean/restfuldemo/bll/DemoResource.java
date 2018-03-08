@@ -17,6 +17,7 @@ import org.jocean.http.BodyBuilder;
 import org.jocean.http.ContentUtil;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
+import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
 import org.jocean.http.StreamUtil;
@@ -25,6 +26,7 @@ import org.jocean.http.client.HttpClient;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
+import org.jocean.idiom.Pair;
 import org.jocean.idiom.Terminable;
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
@@ -33,8 +35,10 @@ import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
 import org.jocean.svr._100ContinueAware;
+import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import io.netty.buffer.ByteBuf;
@@ -55,10 +59,23 @@ import rx.functions.Func1;
 
 @Path("/newrest/")
 @Controller
+@Scope("singleton")
 public class DemoResource {
 
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
+    
+    @Path("qrcode/{wpa}")
+    public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib) {
+        return Observable.zip(this._finder.find(HttpClient.class), this._finder.find(wpa, WechatAPI.class), 
+                (client, api)-> Pair.of(client, api))
+            .flatMap(pair -> {
+                final HttpClient client = pair.first;
+                final WechatAPI api = pair.second;
+                return api.createVolatileQrcode(ib.interact(client), 2592000, "ABC")
+                        .map(location->ResponseUtil.redirectOnly(location));
+            });
+    }
     
     @Path("metaof/{obj}")
     public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname) {
@@ -347,16 +364,4 @@ public class DemoResource {
     
     @Inject
     private BeanFinder _finder;
-    
-//    @HeaderParam("X-Forwarded-For")
-//    private String _peerip;
-//    
-//    @HeaderParam("User-Agent")
-//    private String _ua;
-//    
-//    @HeaderParam("expect")
-//    private String _expect;
-//    
-//    @QueryParam("name")
-//    private String _name;
 }
