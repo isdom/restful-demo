@@ -35,6 +35,7 @@ import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
 import org.jocean.svr._100ContinueAware;
+import org.jocean.svr.ZipUtil.Entry;
 import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -253,46 +254,58 @@ public class DemoResource {
     
     @Path("proxy")
     public Observable<Object> proxy(@QueryParam("uri") final String uri, final WriteCtrl ctrl, final Terminable terminable,
-            final AllocatorBuilder builder) {
+            final AllocatorBuilder ab, final InteractBuilder ib) {
         ctrl.setFlushPerWrite(true);
         
+        return getcontent(uri, ib).map(content -> Observable.just(ZipUtil.entry("123.txt").content(content).build()))
+                .map(zip(resp("demo.zip"), ab, terminable));
+    }
+
+    private Observable<Observable<? extends DisposableWrapper<ByteBuf>>> getcontent(final String uri, final InteractBuilder ib) {
         return this._finder.find(HttpClient.class)
-                .flatMap(client -> MessageUtil.interaction(client).uri(uri).path("/")
+                .flatMap(client -> ib.interact(client).uri(uri).path("/")
                         .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution())
-                .doOnNext(interaction -> terminable.doOnTerminate(interaction.initiator().closer()))
                 .flatMap(interaction -> interaction.execute())
                 .compose(MessageUtil.asBody())
-                .map(body -> body.content().map(DisposableWrapperUtil.unwrap()))
-                .map(content -> {
-                    final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-                    HttpUtil.setTransferEncodingChunked(resp, true);
-                    resp.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=demo.zip");
-                    return new FullMessage() {
-                        @Override
-                        public <M extends HttpMessage> M message() {
-                            return (M)resp;
-                        }
+                .map(body -> body.content());
+    }
+    
+    private Func1<? super Observable<? extends Entry>, ? extends Object> zip(
+            final HttpResponse resp,
+            final AllocatorBuilder ab, final Terminable terminable) {
+        return entries -> {
+            return new FullMessage() {
+                @Override
+                public <M extends HttpMessage> M message() {
+                    return (M)resp;
+                }
 
+                @Override
+                public Observable<? extends MessageBody> body() {
+                    return Observable.just(new MessageBody() {
                         @Override
-                        public Observable<? extends MessageBody> body() {
-                            return Observable.just(new MessageBody() {
-                                @Override
-                                public String contentType() {
-                                    return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
-                                }
-                                @Override
-                                public int contentLength() {
-                                    return -1;
-                                }
-                                @Override
-                                public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                                    return ZipUtil.zip().allocator(builder.build(8192))
-                                            .entries(Observable.just(ZipUtil.entry("123.txt").content(content).build()))
-                                            .hookcloser(closer -> terminable.doOnTerminate(closer))
-                                            .build();
-                                }});
-                        }};
-            });
+                        public String contentType() {
+                            return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+                        }
+                        @Override
+                        public int contentLength() {
+                            return -1;
+                        }
+                        @Override
+                        public Observable<? extends DisposableWrapper<ByteBuf>> content() {
+                            return ZipUtil.zip().allocator(ab.build(8192)).entries(entries)
+                                    .hookcloser(closer -> terminable.doOnTerminate(closer))
+                                    .build();
+                        }});
+                }};
+         };
+    }
+    
+    public HttpResponse resp(final String filename) {
+        final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        HttpUtil.setTransferEncodingChunked(resp, true);
+        resp.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+        return resp;
     }
     
     @Path("foo")
