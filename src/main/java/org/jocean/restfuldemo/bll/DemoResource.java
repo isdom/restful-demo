@@ -17,6 +17,7 @@ import org.jocean.http.BodyBuilder;
 import org.jocean.http.ContentUtil;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
+import org.jocean.http.Interact;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
@@ -26,7 +27,6 @@ import org.jocean.http.client.HttpClient;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.idiom.Pair;
 import org.jocean.idiom.Terminable;
 import org.jocean.netty.BlobRepo;
 import org.jocean.restfuldemo.bean.DemoRequest;
@@ -34,8 +34,8 @@ import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
-import org.jocean.svr._100ContinueAware;
 import org.jocean.svr.ZipUtil.Entry;
+import org.jocean.svr._100ContinueAware;
 import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,37 +66,37 @@ public class DemoResource {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
     
+    private Observable<Interact> interacts(final InteractBuilder ib) {
+        return _finder.find(HttpClient.class).map(client-> ib.interact(client));
+    }
+    
     @Path("qrcode/{wpa}")
     public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib) {
-        return Observable.zip(this._finder.find(HttpClient.class), this._finder.find(wpa, WechatAPI.class), 
-                (client, api)-> Pair.of(client, api))
-            .flatMap(pair -> {
-                final HttpClient client = pair.first;
-                final WechatAPI api = pair.second;
-                return api.createVolatileQrcode(ib.interact(client), 2592000, "ABC")
-                        .map(location->ResponseUtil.redirectOnly(location));
-            });
+        return this._finder.find(wpa, WechatAPI.class)
+                .flatMap(api-> interacts(ib).flatMap(api.createVolatileQrcode(2592000, "ABC")))
+                .map(location->ResponseUtil.redirectOnly(location));
     }
     
     @Path("metaof/{obj}")
-    public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname) {
-        return _blobRepo.getSimplifiedObjectMeta(objname).map(meta -> {
-            LOG.info("meta:{}", meta);
-            if (null != meta.getLastModified()) {
-                final Instant last = meta.getLastModified().toInstant();
-                final Instant lastDay = last.truncatedTo(ChronoUnit.DAYS);
-                final Instant now = Instant.now();
-                final Instant nowDay = now.truncatedTo(ChronoUnit.DAYS);
-                final Duration duration = Duration.between(lastDay, nowDay);
-                return "last:" + last
-                    +" \nlastDay:" + lastDay
-                    + "\nnow:" + now
-                    + "\nnowDay:" + nowDay
-                    + "\nDuration in days:" + duration.toDays();
-            } else {
-                return "Not exist";
-            }
-        });
+    public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final InteractBuilder ib) {
+        return interacts(ib).flatMap(_blobRepo.getSimplifiedObjectMeta(objname))
+            .map(meta -> {
+                LOG.info("meta:{}", meta);
+                if (null != meta.getLastModified()) {
+                    final Instant last = meta.getLastModified().toInstant();
+                    final Instant lastDay = last.truncatedTo(ChronoUnit.DAYS);
+                    final Instant now = Instant.now();
+                    final Instant nowDay = now.truncatedTo(ChronoUnit.DAYS);
+                    final Duration duration = Duration.between(lastDay, nowDay);
+                    return "last:" + last
+                        +" \nlastDay:" + lastDay
+                        + "\nnow:" + now
+                        + "\nnowDay:" + nowDay
+                        + "\nDuration in days:" + duration.toDays();
+                } else {
+                    return "Not exist";
+                }
+            });
     }
     
     static class DemoState {
@@ -349,28 +349,24 @@ public class DemoResource {
             ;
     }
     
-//    @Path("upload")
-//    @POST
-//    public Observable<String> upload(final Observable<MessageDecoder> omd) {
-//        final AtomicInteger idx = new AtomicInteger(0);
-//        return omd.flatMap( decoder -> {
-//            LOG.debug(idx.get() + ": MessageDecoder {}", decoder);
-//            if (decoder.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
-//                return decoder.decodeJsonAs(DemoRequest.class).map(req -> req.toString());
-//            } else {
-//                return _blobRepo.putBlob(Integer.toString(idx.get()), decoder.blobProducer())
-//                    .map(new Func1<String, String>() {
-//                        @Override
-//                        public String call(final String key) {
-//                            return "\r\n[" 
-//                                    + idx.getAndIncrement() 
-//                                    + "] upload:" + decoder.contentType()
-//                                    + " and saved as key("
-//                                    + key + ")";
-//                        }});
-//            }
-//        });
-//    }
+    @Path("upload")
+    @POST
+    public Observable<String> upload(final Observable<MessageBody> omb, final InteractBuilder ib) {
+        final AtomicInteger idx = new AtomicInteger(0);
+        return omb.flatMap( body -> {
+            LOG.debug(idx.get() + ": MessageBody {}", body);
+            if (body.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
+                return MessageUtil.decodeJsonAs(body, DemoRequest.class).map(req -> req.toString());
+            } else {
+                return interacts(ib).flatMap(_blobRepo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
+                    .map(key-> "\r\n[" 
+                        + idx.getAndIncrement() 
+                        + "] upload:" + body.contentType()
+                        + " and saved as key("
+                        + key + ")");
+            }
+        });
+    }
     
     @Inject
     private BlobRepo _blobRepo;
