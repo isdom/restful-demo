@@ -2,6 +2,12 @@ name: units
 parameters: |
   __spring.xml=unit/apistats.xml
 children:
+  - name: redisclient
+    parameters: |
+      redis.server.hostname=localhost
+      redis.server.port=6379
+      redis.server.passwd=passwd
+      redis.server.dbno=255
   - name: nettystats
   - name: jolokia
     parameters: |

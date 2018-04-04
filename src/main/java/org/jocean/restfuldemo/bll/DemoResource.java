@@ -29,6 +29,8 @@ import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.Terminable;
 import org.jocean.netty.BlobRepo;
+import org.jocean.redis.RedisClient;
+import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.ResponseUtil;
@@ -68,6 +70,22 @@ public class DemoResource {
     
     private Observable<Interact> interacts(final InteractBuilder ib) {
         return _finder.find(HttpClient.class).map(client-> ib.interact(client));
+    }
+    
+    @SuppressWarnings("unchecked")
+    @Path("helloredis")
+    public Observable<Object> helloredis() {
+        return this._finder.find(RedisClient.class)
+                .flatMap(redis->redis.getConnection())
+                .compose(RedisUtil.interactWithRedis(
+                        RedisUtil.cmdSet("demo_key", "new hello, redis").nx().build(), 
+                        RedisUtil.ifOKThenElse(
+                            RedisUtil.cmdGet("demo_key"), 
+                            RedisUtil.error("set failed.")
+                            ),
+                        resp->RedisUtil.cmdDel("demo_key")
+                        ))
+                .map(resp->resp.toString());
     }
     
     @Path("qrcode/{wpa}")
