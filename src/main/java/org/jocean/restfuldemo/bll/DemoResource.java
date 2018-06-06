@@ -28,11 +28,13 @@ import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.Terminable;
+import org.jocean.lbsyun.LbsyunAPI;
 import org.jocean.netty.BlobRepo;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.AllocatorBuilder;
+import org.jocean.svr.FinderUtil;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
@@ -67,34 +69,48 @@ public class DemoResource {
 
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
-    
+
     private Observable<Interact> interacts(final InteractBuilder ib) {
         return _finder.find(HttpClient.class).map(client-> ib.interact(client));
     }
-    
+
+    @Path("ipv2")
+    public Observable<Object>  getCityByIpV2(
+            @QueryParam("ip") final String ip,
+            final InteractBuilder ib) {
+        return _finder.find(LbsyunAPI.class).flatMap(
+                api -> FinderUtil.interacts(this._finder, ib)
+                .compose(FinderUtil.processor(_finder, "lbs"))
+                .flatMap(api.ip2position(ip, LbsyunAPI.COOR_GCJ02)))
+//                .flatMap(interact-> Observable.just(new PositionResponse())))
+//                .delay(50, TimeUnit.SECONDS)
+                .compose(FinderUtil.processors(_finder, "retry.default", "timeout.default"))
+                .map(resp -> ResponseUtil.responseAsJson(200, resp));
+    }
+
     @SuppressWarnings("unchecked")
     @Path("helloredis")
     public Observable<Object> helloredis() {
         return this._finder.find(RedisClient.class)
                 .flatMap(redis->redis.getConnection())
                 .compose(RedisUtil.interactWithRedis(
-                        RedisUtil.cmdSet("demo_key", "new hello, redis").nx().build(), 
+                        RedisUtil.cmdSet("demo_key", "new hello, redis").nx().build(),
                         RedisUtil.ifOKThenElse(
-                            RedisUtil.cmdGet("demo_key"), 
+                            RedisUtil.cmdGet("demo_key"),
                             RedisUtil.error("set failed.")
                             ),
                         resp->RedisUtil.cmdDel("demo_key")
                         ))
                 .map(resp->resp.toString());
     }
-    
+
     @Path("qrcode/{wpa}")
     public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib) {
         return this._finder.find(wpa, WechatAPI.class)
                 .flatMap(api-> interacts(ib).flatMap(api.createVolatileQrcode(2592000, "ABC")))
                 .map(location->ResponseUtil.redirectOnly(location));
     }
-    
+
     @Path("metaof/{obj}")
     public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final InteractBuilder ib) {
         return interacts(ib).flatMap(_blobRepo.getSimplifiedObjectMeta(objname))
@@ -116,24 +132,24 @@ public class DemoResource {
                 }
             });
     }
-    
+
     static class DemoState {
         int startid;
         int endid;
-        
-        DemoState(int startid, int endid) {
+
+        DemoState(final int startid, final int endid) {
             this.startid = startid;
             this.endid = endid;
         }
 
         @Override
         public String toString() {
-            StringBuilder builder = new StringBuilder();
+            final StringBuilder builder = new StringBuilder();
             builder.append("DemoState [startid=").append(startid).append(", endid=").append(endid).append("]");
             return builder.toString();
         }
     }
-    
+
     @Path("from/{begin}/to/{end}")
     public Observable<String> pathparam(@PathParam("begin") final String begin, @PathParam("end") final String end,
             final Observable<MessageBody> omb) {
@@ -141,17 +157,17 @@ public class DemoResource {
         return omb.flatMap(body -> MessageUtil.<String>decodeContentAs(body.content(),
                 (buf, cls) -> MessageUtil.parseContentAsString(buf), String.class));
     }
-    
+
     @Path("stream")
     public Object bigresp(final WriteCtrl ctrl, @QueryParam("end") final Integer endNum) {
 
         final AtomicInteger begin = new AtomicInteger(0);
         final AtomicInteger count = new AtomicInteger(0);
         final int end = endNum.intValue();
-        
+
         ctrl.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)).subscribe();
-        
-        final Observable<? extends DisposableWrapper<ByteBuf>> content = 
+
+        final Observable<? extends DisposableWrapper<ByteBuf>> content =
             StreamUtil.<DemoState>buildContent(
                     ctrl.sended(),
                     state2dwb(begin, count, end),
@@ -159,7 +175,7 @@ public class DemoResource {
                 .doOnNext(dwb -> {
                     LOG.info("buildContent : onNext {}", dwb);
                 });
-        
+
         ctrl.setFlushPerWrite(true);
 
         return Observable.just(new FullMessage() {
@@ -198,7 +214,7 @@ public class DemoResource {
 
     private Func1<DemoState, Observable<DisposableWrapper<ByteBuf>>> state2dwb(
             final AtomicInteger begin,
-            final AtomicInteger count, 
+            final AtomicInteger count,
             final int end) {
         return state -> {
             LOG.debug("obj with state: {} has been sended", state);
@@ -216,7 +232,7 @@ public class DemoResource {
             }
         };
     }
-    
+
     @Path("hello")
     @OPTIONS
     @POST
@@ -237,44 +253,44 @@ public class DemoResource {
     }
 
     static class Formed {
-        
+
         @QueryParam("name")
         public String name;
-        
+
         @QueryParam("sex")
         public String sex;
 
         @Override
         public String toString() {
-            StringBuilder builder = new StringBuilder();
+            final StringBuilder builder = new StringBuilder();
             builder.append("Formed [name=").append(name).append(", sex=").append(sex).append("]");
             return builder.toString();
         }
     }
-    
+
     @Path("wwwform")
     public Observable<String> wwwform(final Observable<MessageBody> omb) {
         return omb.flatMap(body -> MessageUtil.decodeContentAs(body.content(),
                         MessageUtil::unserializeAsX_WWW_FORM_URLENCODED, Formed.class))
                 .map(formed -> formed.toString());
     }
-    
+
     @Path("null")
     public Observable<String> returnNull(final Observable<HttpObject> req) {
         return null;
     }
-    
+
     @Path("asjson")
     public Observable<Object> asjson(final Observable<MessageBody> omb, final BodyBuilder bb) {
         return omb.flatMap(body -> MessageUtil.<DemoRequest>decodeJsonAs(body, DemoRequest.class))
         .flatMap(req -> ResponseUtil.response().body(bb.build(req, ContentUtil.TOJSON)).build());
     }
-    
+
     @Path("proxy")
     public Observable<Object> proxy(@QueryParam("uri") final String uri, final WriteCtrl ctrl, final Terminable terminable,
             final AllocatorBuilder ab, final InteractBuilder ib) {
         ctrl.setFlushPerWrite(true);
-        
+
         return getcontent(uri, ib).map(content -> Observable.just(ZipUtil.entry("123.txt").content(content).build()))
                 .map(zip(resp("demo.zip"), ab, terminable));
     }
@@ -287,7 +303,7 @@ public class DemoResource {
                 .compose(MessageUtil.asBody())
                 .map(body -> body.content());
     }
-    
+
     private Func1<? super Observable<? extends Entry>, ? extends Object> zip(
             final HttpResponse resp,
             final AllocatorBuilder ab, final Terminable terminable) {
@@ -318,14 +334,14 @@ public class DemoResource {
                 }};
          };
     }
-    
+
     public HttpResponse resp(final String filename) {
         final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         HttpUtil.setTransferEncodingChunked(resp, true);
         resp.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment; filename=" + filename);
         return resp;
     }
-    
+
     @Path("foo")
     public Observable<String> foo(
             @QueryParam("name") final String name,
@@ -333,7 +349,7 @@ public class DemoResource {
             @HeaderParam("x-forwarded-for") final String peerip) {
         return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip);
     }
-    
+
     @Path("foo100")
     public Observable<Object> fooReply100continue(
             final HttpMethod httpmethod,
@@ -358,15 +374,15 @@ public class DemoResource {
         return Observable.just(ResponseUtil.respWithStatus(200),
                 httpmethod.toString(),
                 "/",
-                "hi, ", 
-                name, 
-                "'s ", 
+                "hi, ",
+                name,
+                "'s ",
                 ua,
                 ResponseUtil.emptyBody())
             .compose(urc)
             ;
     }
-    
+
     @Path("upload")
     @POST
     public Observable<String> upload(final Observable<MessageBody> omb, final InteractBuilder ib) {
@@ -377,18 +393,18 @@ public class DemoResource {
                 return MessageUtil.decodeJsonAs(body, DemoRequest.class).map(req -> req.toString());
             } else {
                 return interacts(ib).flatMap(_blobRepo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
-                    .map(key-> "\r\n[" 
-                        + idx.getAndIncrement() 
+                    .map(key-> "\r\n["
+                        + idx.getAndIncrement()
                         + "] upload:" + body.contentType()
                         + " and saved as key("
                         + key + ")");
             }
         });
     }
-    
+
     @Inject
     private BlobRepo _blobRepo;
-    
+
     @Inject
     private BeanFinder _finder;
 }

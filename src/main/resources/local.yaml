@@ -2,12 +2,29 @@ name: units
 parameters: |
   __spring.xml=unit/apistats.xml
 children:
-  - name: redisclient
+  - name: lbsyunapi.smt
     parameters: |
-      redis.server.hostname=localhost
-      redis.server.port=6379
-      redis.server.passwd=passwd
-      redis.server.dbno=255
+      api.baiduak=XXXXXX
+  - name: interact_features.lbs
+    parameters: |
+      features.name=lbs
+    children:
+      - name: feature_logging
+  - name: rxretry.default
+    parameters: |
+      name=retry.default
+      exception=java.net.ConnectException
+      retryinterval = 10000
+  - name: rxtimeout.default
+    parameters: |
+      name=timeout.default
+      timeout.ms = 15000
+  #- name: redisclient
+  #  parameters: |
+  #    redis.server.hostname=localhost
+  #    redis.server.port=6379
+  #    redis.server.passwd=passwd
+  #    redis.server.dbno=255
   - name: nettystats
   - name: jolokia
     parameters: |
