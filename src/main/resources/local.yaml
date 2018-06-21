@@ -4,10 +4,10 @@ parameters: |
 children:
   - name: lbsyunapi.smt
     parameters: |
-      api.baiduak=XXXXXX
-  - name: interact_features.lbs
+      api.baiduak=xxxxxx
+  - name: interact_features.logging
     parameters: |
-      features.name=lbs
+      name=logging
     children:
       - name: feature_logging
   - name: rxretry.default
@@ -25,6 +25,21 @@ children:
   #    redis.server.port=6379
   #    redis.server.passwd=passwd
   #    redis.server.dbno=255
+  - name: rpcs_top.global
+    parameters: |
+      before = logging
+      after = retry.default, timeout.default
+  - name: rpcs_top.org.jocean.restfuldemo.bll.DemoResource
+    parameters: |
+      name=org.jocean.restfuldemo.bll.DemoResource
+      before = 
+      after = 
+    children:
+      - name: rpcs_sub.getCityByIpV2
+        parameters: |
+          name= getCityByIpV2
+          before = logging
+          after = retry.default, timeout.default
   - name: nettystats
   - name: jolokia
     parameters: |

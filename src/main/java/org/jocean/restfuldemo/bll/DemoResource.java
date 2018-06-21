@@ -36,6 +36,7 @@ import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.FinderUtil;
 import org.jocean.svr.ResponseUtil;
+import org.jocean.svr.RpcRunner;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
 import org.jocean.svr.ZipUtil.Entry;
@@ -78,13 +79,9 @@ public class DemoResource {
     public Observable<Object>  getCityByIpV2(
             @QueryParam("ip") final String ip,
             final InteractBuilder ib) {
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
         return _finder.find(LbsyunAPI.class).flatMap(
-                api -> FinderUtil.interacts(this._finder, ib)
-                .compose(FinderUtil.processor(_finder, "lbs"))
-                .flatMap(api.ip2position(ip, LbsyunAPI.COOR_GCJ02)))
-//                .flatMap(interact-> Observable.just(new PositionResponse())))
-//                .delay(50, TimeUnit.SECONDS)
-                .compose(FinderUtil.processors(_finder, "retry.default", "timeout.default"))
+                api -> rpcs.flatMap(rpc->rpc.execute(api.ip2position(ip, LbsyunAPI.COOR_GCJ02))))
                 .map(resp -> ResponseUtil.responseAsJson(200, resp));
     }
 
