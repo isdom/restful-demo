@@ -29,6 +29,10 @@ dependencies {
     compile 'org.jocean:jocean-redis:0.0.1-SNAPSHOT'
     compile 'org.jocean:jocean-lbsyun:0.0.1-SNAPSHOT'
     
+    compile 'com.netflix.hystrix:hystrix-core:1.5.12'
+    compile 'com.netflix.hystrix:hystrix-metrics-event-stream:1.5.12'
+    compile 'com.netflix.hystrix:hystrix-metrics-event-stream-jaxrs:1.5.12'
+    
     compile "org.slf4j:jcl-over-slf4j:1.7.25"
     compile "org.slf4j:log4j-over-slf4j:1.7.25"
     compile "ch.qos.logback:logback-classic:1.2.2"

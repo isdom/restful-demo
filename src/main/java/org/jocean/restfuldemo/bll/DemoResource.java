@@ -47,6 +47,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
+import com.netflix.hystrix.HystrixCommandGroupKey;
+import com.netflix.hystrix.HystrixCommandKey;
+import com.netflix.hystrix.HystrixObservableCommand;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -81,7 +85,16 @@ public class DemoResource {
             final InteractBuilder ib) {
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
         return _finder.find(LbsyunAPI.class).flatMap(
-                api -> rpcs.flatMap(rpc->rpc.execute(api.ip2position(ip, LbsyunAPI.COOR_GCJ02))))
+                api -> rpcs.flatMap(rpc->{
+                    return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
+                            .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
+                            .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
+                        @Override
+                        protected Observable<LbsyunAPI.PositionResponse> construct() {
+                            return rpc.execute(api.ip2position(ip, LbsyunAPI.COOR_GCJ02));
+                        }
+                    }.toObservable();
+                }))
                 .map(resp -> ResponseUtil.responseAsJson(200, resp));
     }
 
@@ -297,6 +310,7 @@ public class DemoResource {
                 .flatMap(client -> ib.interact(client).uri(uri).path("/")
                         .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution())
                 .flatMap(interaction -> interaction.execute())
+                .compose(MessageUtil.rollout2dwhs())
                 .compose(MessageUtil.asBody())
                 .map(body -> body.content());
     }

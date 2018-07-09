@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package org.jocean.restfuldemo;
 
@@ -13,9 +13,9 @@ import org.jocean.j2se.booter.LocalMain;
 public class DemoMain {
     /**
      * @param args
-     * @throws Exception 
+     * @throws Exception
      */
-    public static void main(String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
         LocalMain.main(args);
     }
 }
