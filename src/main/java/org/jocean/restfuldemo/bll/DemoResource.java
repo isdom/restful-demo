@@ -17,6 +17,8 @@ import org.jocean.http.BodyBuilder;
 import org.jocean.http.ContentUtil;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
+import org.jocean.http.HttpSlice;
+import org.jocean.http.HttpSliceUtil;
 import org.jocean.http.Interact;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
@@ -35,6 +37,7 @@ import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.FinderUtil;
+import org.jocean.svr.MessageResponse;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.RpcRunner;
 import org.jocean.svr.UntilRequestCompleted;
@@ -63,6 +66,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.CharsetUtil;
 import rx.Observable;
 import rx.functions.Func1;
@@ -296,28 +300,42 @@ public class DemoResource {
         .flatMap(req -> ResponseUtil.response().body(bb.build(req, ContentUtil.TOJSON)).build());
     }
 
-    @Path("proxy")
-    public Observable<Object> proxy(@QueryParam("uri") final String uri, final WriteCtrl ctrl, final Terminable terminable,
-            final AllocatorBuilder ab, final InteractBuilder ib) {
-        ctrl.setFlushPerWrite(true);
+    static class ZipResponse implements MessageResponse {
+        @Override
+        public int status() {
+            return 200;
+        }
 
-        return getcontent(uri, ib).map(content -> Observable.just(ZipUtil.entry("123.txt").content(content).build()))
-                .map(zip(resp("demo.zip"), ab, terminable));
+        @HeaderParam("content-type")
+        private final String contentType = HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
     }
 
-    private Observable<Observable<? extends DisposableWrapper<ByteBuf>>> getcontent(final String uri, final InteractBuilder ib) {
+    @Path("proxy")
+    public Observable<Object> proxy(
+            @QueryParam("uri") final String uri,
+            final WriteCtrl ctrl,
+            final Terminable terminable,
+            final AllocatorBuilder ab,
+            final InteractBuilder ib) {
+
+        return Observable.<Object>just(new ZipResponse())
+                .concatWith(getcontent(uri, ib).map(HttpSliceUtil.hs2bbs())
+                .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose())))
+                .concatWith(Observable.just(LastHttpContent.EMPTY_LAST_CONTENT))
+                ;
+    }
+
+    private Observable<? extends HttpSlice> getcontent(final String uri, final InteractBuilder ib) {
         return this._finder.find(HttpClient.class)
                 .flatMap(client -> ib.interact(client).uri(uri).path("/")
                         .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution())
-                .flatMap(interaction -> interaction.execute())
-                .compose(MessageUtil.rollout2dwhs())
-                .compose(MessageUtil.asBody())
-                .map(body -> body.content());
+                .flatMap(interaction -> interaction.execute());
     }
 
     private Func1<? super Observable<? extends Entry>, ? extends Object> zip(
             final HttpResponse resp,
-            final AllocatorBuilder ab, final Terminable terminable) {
+            final AllocatorBuilder ab,
+            final Terminable terminable) {
         return entries -> {
             return new FullMessage() {
                 @Override
@@ -338,7 +356,9 @@ public class DemoResource {
                         }
                         @Override
                         public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                            return ZipUtil.zip().allocator(ab.build(8192)).entries(entries)
+                            return ZipUtil.zip()
+                                    .allocator(ab.build(8192))
+                                    .entries(entries)
                                     .hookcloser(closer -> terminable.doOnTerminate(closer))
                                     .build();
                         }});
