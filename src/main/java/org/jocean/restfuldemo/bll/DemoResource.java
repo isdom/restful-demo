@@ -306,8 +306,17 @@ public class DemoResource {
             return 200;
         }
 
+        public ZipResponse setFilename(final String filename) {
+            _contentDisposition = "attachment; filename=" + filename;
+            return this;
+        }
+
         @HeaderParam("content-type")
-        private final String contentType = HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+        private final String _contentType = HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+
+        @HeaderParam("content-disposition")
+        private String _contentDisposition = null;
+
     }
 
     @Path("proxy")
@@ -318,7 +327,7 @@ public class DemoResource {
             final AllocatorBuilder ab,
             final InteractBuilder ib) {
 
-        return Observable.<Object>just(new ZipResponse())
+        return Observable.<Object>just(new ZipResponse().setFilename("1.zip"))
                 .concatWith(getcontent(uri, ib).map(HttpSliceUtil.hs2bbs())
                         .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose())))
                 .concatWith(Observable.just(LastHttpContent.EMPTY_LAST_CONTENT))
