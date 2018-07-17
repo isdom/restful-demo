@@ -320,7 +320,7 @@ public class DemoResource {
 
         return Observable.<Object>just(new ZipResponse())
                 .concatWith(getcontent(uri, ib).map(HttpSliceUtil.hs2bbs())
-                .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose())))
+                        .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose())))
                 .concatWith(Observable.just(LastHttpContent.EMPTY_LAST_CONTENT))
                 ;
     }
