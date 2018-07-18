@@ -327,6 +327,8 @@ public class DemoResource {
             final AllocatorBuilder ab,
             final InteractBuilder ib) {
 
+        ctrl.sended().subscribe(msg -> DisposableWrapperUtil.dispose(msg));
+
         return Observable.<Object>just(new ZipResponse().setFilename("1.zip"))
                 .concatWith(getcontent(uri, ib).map(HttpSliceUtil.hs2bbs())
                         .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose())))
