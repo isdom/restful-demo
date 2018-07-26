@@ -3,6 +3,7 @@ package org.jocean.restfuldemo.bll;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
@@ -15,15 +16,13 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.http.BodyBuilder;
 import org.jocean.http.ContentUtil;
+import org.jocean.http.DoFlush;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
-import org.jocean.http.HttpSlice;
-import org.jocean.http.HttpSliceUtil;
 import org.jocean.http.Interact;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
-import org.jocean.http.StreamUtil;
 import org.jocean.http.WriteCtrl;
 import org.jocean.http.client.HttpClient;
 import org.jocean.idiom.BeanFinder;
@@ -38,13 +37,14 @@ import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.FinderUtil;
 import org.jocean.svr.MessageResponse;
+import org.jocean.svr.ResponseBody;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.RpcRunner;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
-import org.jocean.svr.ZipUtil.Entry;
 import org.jocean.svr._100ContinueAware;
 import org.jocean.wechat.WechatAPI;
+//import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
@@ -55,10 +55,10 @@ import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixObservableCommand;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
@@ -67,7 +67,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.util.CharsetUtil;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -172,6 +171,7 @@ public class DemoResource {
                 (buf, cls) -> MessageUtil.parseContentAsString(buf), String.class));
     }
 
+    /*
     @Path("stream")
     public Object bigresp(final WriteCtrl ctrl, @QueryParam("end") final Integer endNum) {
 
@@ -192,15 +192,14 @@ public class DemoResource {
 
         ctrl.setFlushPerWrite(true);
 
-        return Observable.just(new FullMessage() {
+        return Observable.just(new FullMessage<HttpResponse>() {
 
-            @SuppressWarnings("unchecked")
             @Override
-            public <M extends HttpMessage> M message() {
+            public HttpResponse message() {
                 final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
                 resp.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_PLAIN);
                 HttpUtil.setTransferEncodingChunked(resp, true);
-                return (M) resp;
+                return resp;
             }
 
             @Override
@@ -218,8 +217,19 @@ public class DemoResource {
                     }
 
                     @Override
-                    public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                        return content;
+                    public Observable<? extends ByteBufSlice> content() {
+                        return Observable.just(new ByteBufSlice(){
+
+                            @Override
+                            public void step() {
+                                // TODO Auto-generated method stub
+
+                            }
+
+                            @Override
+                            public Observable<? extends DisposableWrapper<? extends ByteBuf>> element() {
+                                return content;
+                            }});
                     }
                 });
             }
@@ -246,6 +256,7 @@ public class DemoResource {
             }
         };
     }
+    */
 
     @Path("hello")
     @OPTIONS
@@ -300,13 +311,13 @@ public class DemoResource {
         .flatMap(req -> ResponseUtil.response().body(bb.build(req, ContentUtil.TOJSON)).build());
     }
 
-    static class ZipResponse implements MessageResponse {
+    static class BinaryResponse implements MessageResponse {
         @Override
         public int status() {
             return 200;
         }
 
-        public ZipResponse setFilename(final String filename) {
+        public BinaryResponse setFilename(final String filename) {
             _contentDisposition = "attachment; filename=" + filename;
             return this;
         }
@@ -329,20 +340,52 @@ public class DemoResource {
 
         ctrl.sended().subscribe(msg -> DisposableWrapperUtil.dispose(msg));
 
-        return Observable.<Object>just(new ZipResponse().setFilename("1.zip"))
-                .concatWith(getcontent(uri, ib).map(HttpSliceUtil.hs2bbs())
-                        .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose())))
+        final AtomicInteger unzipedSize = new AtomicInteger(0);
+
+        terminable.doOnTerminate(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
+
+        return Observable.<Object>just(new BinaryResponse().setFilename("1.zip"))
+                .concatWith(getcontent(uri, ib).flatMap(msg -> msg.body()).flatMap(body -> body.content())
+                    .doOnNext( bbs -> {
+                        LOG.debug("=========== source slice: {}", bbs);
+                        final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                        LOG.debug("=========== source to zip begin");
+                        for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                            LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                        }
+                        LOG.debug("=========== source to zip end");
+                    })
+                    .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose()))
+                    .doOnNext( bbs -> {
+                        LOG.debug("=========== zipped slice: {}", bbs);
+                        final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                        LOG.debug("------------ zipped begin");
+                        for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                            LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                        }
+                        LOG.debug("------------ zipped end");
+                    })
+                    .compose(ZipUtil.unzipSlices(ab.build(8192), terminable, 512, dwb->dwb.dispose()))
+                    .doOnNext( bbs -> {
+                        LOG.debug("=========== unzipped slice: {}", bbs);
+                        final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                        for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                            unzipedSize.addAndGet( dwb.unwrap().readableBytes() );
+                        }
+                    })
+                )
                 .concatWith(Observable.just(LastHttpContent.EMPTY_LAST_CONTENT))
                 ;
     }
 
-    private Observable<? extends HttpSlice> getcontent(final String uri, final InteractBuilder ib) {
+    private Observable<? extends FullMessage<HttpResponse>> getcontent(final String uri, final InteractBuilder ib) {
         return this._finder.find(HttpClient.class)
                 .flatMap(client -> ib.interact(client).uri(uri).path("/")
                         .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution())
                 .flatMap(interaction -> interaction.execute());
     }
 
+    /*
     private Func1<? super Observable<? extends Entry>, ? extends Object> zip(
             final HttpResponse resp,
             final AllocatorBuilder ab,
@@ -376,6 +419,7 @@ public class DemoResource {
                 }};
          };
     }
+    */
 
     public HttpResponse resp(final String filename) {
         final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
@@ -425,23 +469,51 @@ public class DemoResource {
             ;
     }
 
+    static class _100ContinueResponse implements MessageResponse, ResponseBody {
+
+        @Override
+        public ByteBuf content() {
+            return null;
+        }
+
+        @Override
+        public int status() {
+            return 100;
+        }
+    }
+
     @Path("upload")
     @POST
-    public Observable<String> upload(final Observable<MessageBody> omb, final InteractBuilder ib) {
+    public Observable<Object> upload(
+            final HttpRequest request,
+            final Observable<MessageBody> omb,
+            final InteractBuilder ib) {
+
         final AtomicInteger idx = new AtomicInteger(0);
-        return omb.flatMap( body -> {
+
+        final Observable<Object> prefix = handle100Continue(request);
+        return prefix.concatWith(omb.flatMap(body -> {
             LOG.debug(idx.get() + ": MessageBody {}", body);
             if (body.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
                 return MessageUtil.decodeJsonAs(body, DemoRequest.class).map(req -> req.toString());
             } else {
                 return interacts(ib).flatMap(_blobRepo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
-                    .map(key-> "\r\n["
+                    .flatMap(key-> Observable.just(ResponseUtil.respWithStatus(200),
+                            "\r\n["
                         + idx.getAndIncrement()
                         + "] upload:" + body.contentType()
                         + " and saved as key("
-                        + key + ")");
+                        + key + ")",
+                        LastHttpContent.EMPTY_LAST_CONTENT
+                        ));
             }
-        });
+        }));
+    }
+
+    private Observable<Object> handle100Continue(final HttpRequest request) {
+        return HttpUtil.is100ContinueExpected(request)
+            ? Observable.<Object>just(new _100ContinueResponse(), DoFlush.Util.flushOnly())
+            : Observable.empty();
     }
 
     @Inject

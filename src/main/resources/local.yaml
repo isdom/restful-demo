@@ -4,7 +4,7 @@ parameters: |
 children:
   - name: lbsyunapi.smt
     parameters: |
-      api.baiduak=xxxxxx
+      api.baiduak=XXXXXX
   - name: interact_features.logging
     parameters: |
       name=logging
@@ -19,6 +19,15 @@ children:
     parameters: |
       name=timeout.default
       timeout.ms = 15000
+  - name: oss.staging
+    parameters: |
+      access.keyid=XXXXXX
+      access.keysecret=XXXXXXXXXXXXXXXXXX
+      oss.endpoint=http://oss-cn-hangzhou.aliyuncs.com
+    children:
+      - name: ossrepo
+        parameters: |
+          bucket.name =XXXXXX
   #- name: redisclient
   #  parameters: |
   #    redis.server.hostname=localhost
@@ -78,7 +87,7 @@ children:
         parameters: |
           http.port = 9090
           http.address=0.0.0.0
-          restin.pathpattern=/newrest/
+          restin.pathpattern=/newrest/|/hystrix.stream
           restin.category = demo
         children:
           - name: feature_logging
@@ -90,5 +99,4 @@ children:
               resource.interceptors=\
               org.jocean.svr.interceptor.StatRest,\
               org.jocean.svr.interceptor.LogRest,\
-              org.jocean.svr.interceptor.EnableCORS,\
-              org.jocean.svr.interceptor.Handle100Continue
+              org.jocean.svr.interceptor.EnableCORS

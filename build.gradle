@@ -15,8 +15,6 @@ configurations {
 }
 
 dependencies {
-    // compile 'gdt:act-boot:0.0.1-SNAPSHOT'
-    
     compile 'org.slf4j:slf4j-api:1.7.25'
 
     compile 'org.jocean:jocean-idiom:0.1.4-SNAPSHOT'
@@ -24,6 +22,7 @@ dependencies {
     compile 'org.jocean:jocean-j2se:0.0.4-SNAPSHOT'
     compile 'org.jocean:jocean-jdmk:0.0.2'
     compile 'org.jocean:jocean-svr:0.0.1-SNAPSHOT'
+    
     compile 'org.jocean:jocean-aliyun:0.0.1-SNAPSHOT'
     compile 'org.jocean:jocean-wechat:0.0.1-SNAPSHOT'
     compile 'org.jocean:jocean-redis:0.0.1-SNAPSHOT'

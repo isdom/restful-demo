@@ -42,7 +42,7 @@
         </encoder>
     </appender>
 
-    <logger name="io.netty" level="DEBUG"/>
+    <logger name="io.netty" level="INFO"/>
     <logger name="org.jocean.http.util.HttpFuncs" level="INFO"/>
     <logger name="org.jocean.http.server.impl.DefaultHttpTrade" level="INFO"/>
     <logger name="org.jocean.svr" level="DEBUG"/>
@@ -55,7 +55,7 @@
 
     <root level="DEBUG">
         <appender-ref ref="stdout"/>
-        <!-- appender-ref ref="ASYNC"/ -->
+        <appender-ref ref="ASYNC"/>
         <appender-ref ref="errorFile"/>
     </root>
 </configuration>
