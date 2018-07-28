@@ -366,6 +366,10 @@ public class DemoResource {
                         LOG.debug("------------ zipped end");
                     })
                     .compose(ZipUtil.unzipSlices(ab.build(8192), terminable, 512, dwb->dwb.dispose()))
+                    .flatMap(entity -> {
+                        LOG.debug("=========== unzip zip entity: {}", entity.entry());
+                        return entity.body();
+                    })
                     .doOnNext( bbs -> {
                         LOG.debug("=========== unzipped slice: {}", bbs);
                         final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
