@@ -15,6 +15,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
 import org.jocean.http.BodyBuilder;
+import org.jocean.http.ByteBufSlice;
 import org.jocean.http.ContentUtil;
 import org.jocean.http.DoFlush;
 import org.jocean.http.Feature;
@@ -42,6 +43,7 @@ import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.RpcRunner;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.ZipUtil;
+import org.jocean.svr.ZipUtil.TozipEntity;
 import org.jocean.svr._100ContinueAware;
 import org.jocean.wechat.WechatAPI;
 //import org.jocean.wechat.WechatAPI;
@@ -345,17 +347,24 @@ public class DemoResource {
         terminable.doOnTerminate(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
 
         return Observable.<Object>just(new BinaryResponse().setFilename("1.zip"))
-                .concatWith(getcontent(uri, ib).flatMap(msg -> msg.body()).flatMap(body -> body.content())
-                    .doOnNext( bbs -> {
-                        LOG.debug("=========== source slice: {}", bbs);
-                        final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
-                        LOG.debug("=========== source to zip begin");
-                        for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                            LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                .concatWith(getcontent(uri, ib).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
+                        @Override
+                        public String entryName() {
+                            return "123.txt";
                         }
-                        LOG.debug("=========== source to zip end");
-                    })
-                    .compose(ZipUtil.zipSlices(ab.build(8192), "123.txt", terminable, 512, dwb->dwb.dispose()))
+                        @Override
+                        public Observable<? extends ByteBufSlice> body() {
+                            return body.content().doOnNext( bbs -> {
+                                LOG.debug("=========== source slice: {}", bbs);
+                                final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                                LOG.debug("=========== source to zip begin");
+                                for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                                    LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                                }
+                                LOG.debug("=========== source to zip end");
+                            });
+                        }})
+                    .compose(ZipUtil.zipEntities(ab.build(8192), terminable, 512, dwb->dwb.dispose()))
                     .doOnNext( bbs -> {
                         LOG.debug("=========== zipped slice: {}", bbs);
                         final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
@@ -365,7 +374,7 @@ public class DemoResource {
                         }
                         LOG.debug("------------ zipped end");
                     })
-                    .compose(ZipUtil.unzipSlices(ab.build(8192), terminable, 512, dwb->dwb.dispose()))
+                    .compose(ZipUtil.unzipToEntities(ab.build(8192), terminable, 512, dwb->dwb.dispose()))
                     .flatMap(entity -> {
                         LOG.debug("=========== unzip zip entity: {}", entity.entry());
                         return entity.body();
