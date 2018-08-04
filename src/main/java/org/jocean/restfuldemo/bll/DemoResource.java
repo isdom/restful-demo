@@ -14,6 +14,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
+import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.BodyBuilder;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.ContentUtil;
@@ -31,7 +32,6 @@ import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.Terminable;
 import org.jocean.lbsyun.LbsyunAPI;
-import org.jocean.netty.BlobRepo;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
@@ -76,12 +76,27 @@ import rx.functions.Func1;
 @Controller
 @Scope("singleton")
 public class DemoResource {
-
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
 
     private Observable<Interact> interacts(final InteractBuilder ib) {
         return _finder.find(HttpClient.class).map(client-> ib.interact(client));
+    }
+
+    @Path("download")
+    public Observable<Object> download(@QueryParam("key") final String key, final InteractBuilder ib) {
+        final DefaultHttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        HttpUtil.setTransferEncodingChunked(resp, true);
+        return Observable.just(new FullMessage<HttpResponse>() {
+            @Override
+            public HttpResponse message() {
+                return resp;
+            }
+            @Override
+            public Observable<? extends MessageBody> body() {
+                return _finder.find(HttpClient.class).map(client -> ib.interact(client))
+                        .flatMap(_repo.getObject(key));
+            }});
     }
 
     @Path("ipv2")
@@ -128,7 +143,7 @@ public class DemoResource {
 
     @Path("metaof/{obj}")
     public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final InteractBuilder ib) {
-        return interacts(ib).flatMap(_blobRepo.getSimplifiedObjectMeta(objname))
+        return interacts(ib).flatMap(_repo.getSimplifiedObjectMeta(objname))
             .map(meta -> {
                 LOG.info("meta:{}", meta);
                 if (null != meta.getLastModified()) {
@@ -146,23 +161,6 @@ public class DemoResource {
                     return "Not exist";
                 }
             });
-    }
-
-    static class DemoState {
-        int startid;
-        int endid;
-
-        DemoState(final int startid, final int endid) {
-            this.startid = startid;
-            this.endid = endid;
-        }
-
-        @Override
-        public String toString() {
-            final StringBuilder builder = new StringBuilder();
-            builder.append("DemoState [startid=").append(startid).append(", endid=").append(endid).append("]");
-            return builder.toString();
-        }
     }
 
     @Path("from/{begin}/to/{end}")
@@ -510,7 +508,7 @@ public class DemoResource {
             if (body.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
                 return MessageUtil.decodeJsonAs(body, DemoRequest.class).map(req -> req.toString());
             } else {
-                return interacts(ib).flatMap(_blobRepo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
+                return interacts(ib).flatMap(_repo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
                     .flatMap(key-> Observable.just(ResponseUtil.respWithStatus(200),
                             "\r\n["
                         + idx.getAndIncrement()
@@ -530,7 +528,7 @@ public class DemoResource {
     }
 
     @Inject
-    private BlobRepo _blobRepo;
+    private BlobRepoOverOSS _repo;
 
     @Inject
     private BeanFinder _finder;
