@@ -15,9 +15,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
-import org.jocean.http.BodyBuilder;
 import org.jocean.http.ByteBufSlice;
-import org.jocean.http.ContentUtil;
 import org.jocean.http.DoFlush;
 import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
@@ -37,14 +35,13 @@ import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.FinderUtil;
-import org.jocean.svr.MessageResponse;
-import org.jocean.svr.ResponseBody;
+import org.jocean.svr.HeaderOnly;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.RpcRunner;
 import org.jocean.svr.UntilRequestCompleted;
+import org.jocean.svr.WithStatus;
 import org.jocean.svr.ZipUtil;
 import org.jocean.svr.ZipUtil.TozipEntity;
-import org.jocean.svr._100ContinueAware;
 import org.jocean.wechat.WechatAPI;
 //import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
@@ -70,7 +67,6 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import rx.Observable;
-import rx.functions.Func1;
 
 @Path("/newrest/")
 @Controller
@@ -306,17 +302,12 @@ public class DemoResource {
     }
 
     @Path("asjson")
-    public Observable<Object> asjson(final Observable<MessageBody> omb, final BodyBuilder bb) {
+    public Observable<Object> asjson(final Observable<MessageBody> omb) {
         return omb.flatMap(body -> MessageUtil.<DemoRequest>decodeJsonAs(body, DemoRequest.class))
-        .flatMap(req -> ResponseUtil.response().body(bb.build(req, ContentUtil.TOJSON)).build());
+                .map(req -> ResponseUtil.responseAsJson(200, req));
     }
 
-    static class BinaryResponse implements MessageResponse {
-        @Override
-        public int status() {
-            return 200;
-        }
-
+    static class BinaryResponse {
         public BinaryResponse setFilename(final String filename) {
             _contentDisposition = "attachment; filename=" + filename;
             return this;
@@ -447,6 +438,7 @@ public class DemoResource {
         return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip);
     }
 
+    /* TO fix
     @Path("foo100")
     public Observable<Object> fooReply100continue(
             final HttpMethod httpmethod,
@@ -479,13 +471,9 @@ public class DemoResource {
             .compose(urc)
             ;
     }
+    */
 
-    static class _100ContinueResponse implements MessageResponse, ResponseBody {
-
-        @Override
-        public ByteBuf content() {
-            return null;
-        }
+    static class _100ContinueResponse extends HeaderOnly implements WithStatus {
 
         @Override
         public int status() {
@@ -509,14 +497,12 @@ public class DemoResource {
                 return MessageUtil.decodeJsonAs(body, DemoRequest.class).map(req -> req.toString());
             } else {
                 return interacts(ib).flatMap(_repo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
-                    .flatMap(key-> Observable.just(ResponseUtil.respWithStatus(200),
+                    .map(key-> ResponseUtil.responseAsText(200,
                             "\r\n["
                         + idx.getAndIncrement()
                         + "] upload:" + body.contentType()
                         + " and saved as key("
-                        + key + ")",
-                        LastHttpContent.EMPTY_LAST_CONTENT
-                        ));
+                        + key + ")"));
             }
         }));
     }
