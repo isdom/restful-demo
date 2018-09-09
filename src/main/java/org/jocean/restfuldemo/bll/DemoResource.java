@@ -17,31 +17,29 @@ import javax.ws.rs.QueryParam;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.DoFlush;
-import org.jocean.http.Feature;
 import org.jocean.http.FullMessage;
 import org.jocean.http.Interact;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
-import org.jocean.http.WriteCtrl;
 import org.jocean.http.client.HttpClient;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.idiom.Terminable;
 import org.jocean.lbsyun.LbsyunAPI;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
-import org.jocean.svr.AllocatorBuilder;
 import org.jocean.svr.FinderUtil;
 import org.jocean.svr.HeaderOnly;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.RpcRunner;
+import org.jocean.svr.TradeContext;
 import org.jocean.svr.UntilRequestCompleted;
+import org.jocean.svr.WithBody;
 import org.jocean.svr.WithStatus;
-import org.jocean.svr.ZipUtil;
 import org.jocean.svr.ZipUtil.TozipEntity;
+import org.jocean.svr.ZipUtil.ZipBuilder;
 import org.jocean.wechat.WechatAPI;
 //import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
@@ -65,8 +63,8 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
 import rx.Observable;
+import rx.Observable.Transformer;
 
 @Path("/newrest/")
 @Controller
@@ -307,84 +305,95 @@ public class DemoResource {
                 .map(req -> ResponseUtil.responseAsJson(200, req));
     }
 
-    static class BinaryResponse {
-        public BinaryResponse setFilename(final String filename) {
-            _contentDisposition = "attachment; filename=" + filename;
-            return this;
+    static abstract class BinaryResponse implements WithBody {
+
+        public BinaryResponse(final String filename) {
+            this._contentDisposition = "attachment; filename=" + filename;
         }
 
-        @HeaderParam("content-type")
-        private final String _contentType = HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
-
         @HeaderParam("content-disposition")
-        private String _contentDisposition = null;
+        private final String _contentDisposition;
 
     }
 
     @Path("proxy")
-    public Observable<Object> proxy(
+    public BinaryResponse proxy(
             @QueryParam("uri") final String uri,
-            final WriteCtrl ctrl,
-            final Terminable terminable,
-            final AllocatorBuilder ab,
-            final InteractBuilder ib) {
+            final TradeContext tctx,
+            final ZipBuilder zb) {
 
-        ctrl.sended().subscribe(msg -> DisposableWrapperUtil.dispose(msg));
+        tctx.writeCtrl().sended().subscribe(msg -> DisposableWrapperUtil.dispose(msg));
 
         final AtomicInteger unzipedSize = new AtomicInteger(0);
 
-        terminable.doOnTerminate(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
+        tctx.terminable().doOnTerminate(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
 
-        return Observable.<Object>just(new BinaryResponse().setFilename("1.zip"))
-                .concatWith(getcontent(uri, ib).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
-                        @Override
-                        public String entryName() {
-                            return "123.txt";
-                        }
-                        @Override
-                        public Observable<? extends ByteBufSlice> body() {
-                            return body.content().doOnNext( bbs -> {
-                                LOG.debug("=========== source slice: {}", bbs);
-                                final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
-                                LOG.debug("=========== source to zip begin");
-                                for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                                    LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
-                                }
-                                LOG.debug("=========== source to zip end");
-                            });
-                        }})
-                    .compose(ZipUtil.zipEntities(ab.build(8192), terminable, 512, dwb->dwb.dispose()))
-                    .doOnNext( bbs -> {
-                        LOG.debug("=========== zipped slice: {}", bbs);
-                        final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
-                        LOG.debug("------------ zipped begin");
-                        for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                            LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
-                        }
-                        LOG.debug("------------ zipped end");
-                    })
-                    .compose(ZipUtil.unzipToEntities(ab.build(8192), terminable, 512, dwb->dwb.dispose()))
-                    .flatMap(entity -> {
-                        LOG.debug("=========== unzip zip entity: {}", entity.entry());
-                        return entity.body();
-                    })
-                    .doOnNext( bbs -> {
-                        LOG.debug("=========== unzipped slice: {}", bbs);
-                        final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
-                        for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                            unzipedSize.addAndGet( dwb.unwrap().readableBytes() );
-                        }
-                    })
-                )
-                .concatWith(Observable.just(LastHttpContent.EMPTY_LAST_CONTENT))
-                ;
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(tctx.interactBuilder()).runner();
+
+        return new BinaryResponse("1.zip") {
+            @Override
+            public Observable<? extends MessageBody> body() {
+                return Observable.just(new MessageBody() {
+
+                    @Override
+                    public String contentType() {
+                        return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+                    }
+
+                    @Override
+                    public int contentLength() {
+                        return -1;
+                    }
+
+                    @Override
+                    public Observable<? extends ByteBufSlice> content() {
+                        return rpcs.compose(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
+                            @Override
+                            public String entryName() {
+                                return "123.txt";
+                            }
+                            @Override
+                            public Observable<? extends ByteBufSlice> body() {
+                                return body.content().doOnNext( bbs -> {
+                                    LOG.debug("=========== source slice: {}", bbs);
+                                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                                    LOG.debug("=========== source to zip begin");
+                                    for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                                        LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                                    }
+                                    LOG.debug("=========== source to zip end");
+                                });
+                            }})
+                        .compose(zb.zip(8192,512))
+                        .doOnNext( bbs -> {
+                            LOG.debug("=========== zipped slice: {}", bbs);
+                            final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                            LOG.debug("------------ zipped begin");
+                            for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                                LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                            }
+                            LOG.debug("------------ zipped end");
+                        })
+                        .compose(zb.unzip(8192, 512))
+                        .flatMap(entity -> {
+                            LOG.debug("=========== unzip zip entity: {}", entity.entry());
+                            return entity.body();
+                        })
+                        .doOnNext( bbs -> {
+                            LOG.debug("=========== unzipped slice: {}", bbs);
+                            final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                            for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                                unzipedSize.addAndGet( dwb.unwrap().readableBytes() );
+                            }
+                        });
+                    }});
+            }
+        };
     }
 
-    private Observable<? extends FullMessage<HttpResponse>> getcontent(final String uri, final InteractBuilder ib) {
-        return this._finder.find(HttpClient.class)
-                .flatMap(client -> ib.interact(client).uri(uri).path("/")
-                        .feature(Feature.ENABLE_LOGGING_OVER_SSL).execution())
-                .flatMap(interaction -> interaction.execute());
+    private Transformer<RpcRunner, FullMessage<HttpResponse>> fetch(final String uri) {
+        return rpcs -> rpcs.flatMap(rpc -> rpc.execute(interact -> interact.uri(uri).path("/").execution())
+                .flatMap(interaction -> interaction.execute()));
     }
 
     /*
