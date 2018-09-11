@@ -18,11 +18,10 @@ import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
-import org.jocean.http.Interact;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
-import org.jocean.http.client.HttpClient;
+import org.jocean.http.RpcRunner;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
@@ -33,10 +32,10 @@ import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.FinderUtil;
 import org.jocean.svr.HeaderOnly;
 import org.jocean.svr.ResponseUtil;
-import org.jocean.svr.RpcRunner;
 import org.jocean.svr.TradeContext;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.WithBody;
+import org.jocean.svr.WithSlice;
 import org.jocean.svr.WithStatus;
 import org.jocean.svr.ZipUtil.TozipEntity;
 import org.jocean.svr.ZipUtil.ZipBuilder;
@@ -73,24 +72,15 @@ public class DemoResource {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoResource.class);
 
-    private Observable<Interact> interacts(final InteractBuilder ib) {
-        return _finder.find(HttpClient.class).map(client-> ib.interact(client));
-    }
-
     @Path("download")
-    public Observable<Object> download(@QueryParam("key") final String key, final InteractBuilder ib) {
-        final DefaultHttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        HttpUtil.setTransferEncodingChunked(resp, true);
-        return Observable.just(new FullMessage<HttpResponse>() {
-            @Override
-            public HttpResponse message() {
-                return resp;
-            }
+    public WithBody download(@QueryParam("key") final String key, final InteractBuilder ib) {
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
+
+        return new WithBody() {
             @Override
             public Observable<? extends MessageBody> body() {
-                return _finder.find(HttpClient.class).map(client -> ib.interact(client))
-                        .flatMap(_repo.getObject(key));
-            }});
+                return rpcs.compose(_repo.getObject(key));
+            }};
     }
 
     @Path("ipv2")
@@ -130,14 +120,18 @@ public class DemoResource {
 
     @Path("qrcode/{wpa}")
     public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib) {
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
+
         return this._finder.find(wpa, WechatAPI.class)
-                .flatMap(api-> interacts(ib).flatMap(api.createVolatileQrcode(2592000, "ABC")))
+                .flatMap(api-> rpcs.flatMap( rpc -> rpc.execute(api.createVolatileQrcode(2592000, "ABC"))))
                 .map(location->ResponseUtil.redirectOnly(location));
     }
 
     @Path("metaof/{obj}")
     public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final InteractBuilder ib) {
-        return interacts(ib).flatMap(_repo.getSimplifiedObjectMeta(objname))
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
+
+        return rpcs.compose(_repo.getSimplifiedObjectMeta(objname))
             .map(meta -> {
                 LOG.info("meta:{}", meta);
                 if (null != meta.getLastModified()) {
@@ -305,7 +299,7 @@ public class DemoResource {
                 .map(req -> ResponseUtil.responseAsJson(200, req));
     }
 
-    static abstract class BinaryResponse implements WithBody {
+    static abstract class BinaryResponse implements WithSlice {
 
         public BinaryResponse(final String filename) {
             this._contentDisposition = "attachment; filename=" + filename;
@@ -332,61 +326,51 @@ public class DemoResource {
 
         return new BinaryResponse("1.zip") {
             @Override
-            public Observable<? extends MessageBody> body() {
-                return Observable.just(new MessageBody() {
+            public String contentType() {
+                return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+            }
 
+            @Override
+            public Observable<ByteBufSlice> slices() {
+                return (Observable<ByteBufSlice>) rpcs.compose(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
                     @Override
-                    public String contentType() {
-                        return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+                    public String entryName() {
+                        return "123.txt";
                     }
-
                     @Override
-                    public int contentLength() {
-                        return -1;
-                    }
-
-                    @Override
-                    public Observable<? extends ByteBufSlice> content() {
-                        return rpcs.compose(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
-                            @Override
-                            public String entryName() {
-                                return "123.txt";
-                            }
-                            @Override
-                            public Observable<? extends ByteBufSlice> body() {
-                                return body.content().doOnNext( bbs -> {
-                                    LOG.debug("=========== source slice: {}", bbs);
-                                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
-                                    LOG.debug("=========== source to zip begin");
-                                    for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                                        LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
-                                    }
-                                    LOG.debug("=========== source to zip end");
-                                });
-                            }})
-                        .compose(zb.zip(8192,512))
-                        .doOnNext( bbs -> {
-                            LOG.debug("=========== zipped slice: {}", bbs);
+                    public Observable<? extends ByteBufSlice> body() {
+                        return body.content().doOnNext( bbs -> {
+                            LOG.debug("=========== source slice: {}", bbs);
                             final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
-                            LOG.debug("------------ zipped begin");
+                            LOG.debug("=========== source to zip begin");
                             for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                                LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                                LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
                             }
-                            LOG.debug("------------ zipped end");
-                        })
-                        .compose(zb.unzip(8192, 512))
-                        .flatMap(entity -> {
-                            LOG.debug("=========== unzip zip entity: {}", entity.entry());
-                            return entity.body();
-                        })
-                        .doOnNext( bbs -> {
-                            LOG.debug("=========== unzipped slice: {}", bbs);
-                            final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
-                            for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                                unzipedSize.addAndGet( dwb.unwrap().readableBytes() );
-                            }
+                            LOG.debug("=========== source to zip end");
                         });
-                    }});
+                    }})
+                .compose(zb.zip(8192,512))
+                .doOnNext( bbs -> {
+                    LOG.debug("=========== zipped slice: {}", bbs);
+                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                    LOG.debug("------------ zipped begin");
+                    for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                        LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+                    }
+                    LOG.debug("------------ zipped end");
+                })
+                .compose(zb.unzip(8192, 512))
+                .flatMap(entity -> {
+                    LOG.debug("=========== unzip zip entity: {}", entity.entry());
+                    return entity.body();
+                })
+                .doOnNext( bbs -> {
+                    LOG.debug("=========== unzipped slice: {}", bbs);
+                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                    for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+                        unzipedSize.addAndGet( dwb.unwrap().readableBytes() );
+                    }
+                });
             }
         };
     }
@@ -498,6 +482,7 @@ public class DemoResource {
             final InteractBuilder ib) {
 
         final AtomicInteger idx = new AtomicInteger(0);
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
 
         final Observable<Object> prefix = handle100Continue(request);
         return prefix.concatWith(omb.flatMap(body -> {
@@ -505,7 +490,7 @@ public class DemoResource {
             if (body.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
                 return MessageUtil.decodeJsonAs(body, DemoRequest.class).map(req -> req.toString());
             } else {
-                return interacts(ib).flatMap(_repo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
+                return rpcs.compose(_repo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
                     .map(key-> ResponseUtil.responseAsText(200,
                             "\r\n["
                         + idx.getAndIncrement()
