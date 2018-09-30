@@ -16,7 +16,6 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
-import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
@@ -30,13 +29,12 @@ import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.FinderUtil;
-import org.jocean.svr.HeaderOnly;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.TradeContext;
 import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.WithBody;
+import org.jocean.svr.WithRawBody;
 import org.jocean.svr.WithSlice;
-import org.jocean.svr.WithStatus;
 import org.jocean.svr.ZipUtil.TozipEntity;
 import org.jocean.svr.ZipUtil.ZipBuilder;
 import org.jocean.wechat.WechatAPI;
@@ -76,7 +74,7 @@ public class DemoResource {
     public WithBody download(@QueryParam("key") final String key, final InteractBuilder ib) {
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
 
-        return new WithBody() {
+        return new WithRawBody() {
             @Override
             public Observable<? extends MessageBody> body() {
                 return rpcs.compose(_repo.getObject(key));
@@ -89,16 +87,16 @@ public class DemoResource {
             final InteractBuilder ib) {
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
         return _finder.find(LbsyunAPI.class).flatMap(
-                api -> rpcs.flatMap(rpc->{
+                api -> {
                     return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
                             .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
                             .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
                         @Override
                         protected Observable<LbsyunAPI.PositionResponse> construct() {
-                            return rpc.execute(api.ip2position(ip, LbsyunAPI.COOR_GCJ02));
+                            return rpcs.compose(api.ip2position(ip, LbsyunAPI.COOR_GCJ02));
                         }
                     }.toObservable();
-                }))
+                })
                 .map(resp -> ResponseUtil.responseAsJson(200, resp));
     }
 
@@ -123,7 +121,7 @@ public class DemoResource {
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
 
         return this._finder.find(wpa, WechatAPI.class)
-                .flatMap(api-> rpcs.flatMap( rpc -> rpc.execute(api.createVolatileQrcode(2592000, "ABC"))))
+                .flatMap(api-> rpcs.compose(api.createVolatileQrcode(2592000, "ABC")))
                 .map(location->ResponseUtil.redirectOnly(location));
     }
 
@@ -466,13 +464,13 @@ public class DemoResource {
     }
     */
 
-    static class _100ContinueResponse extends HeaderOnly implements WithStatus {
-
-        @Override
-        public int status() {
-            return 100;
-        }
-    }
+//    static class _100ContinueResponse extends HeaderOnly implements WithStatus {
+//
+//        @Override
+//        public int status() {
+//            return 100;
+//        }
+//    }
 
     @Path("upload")
     @POST
@@ -502,9 +500,11 @@ public class DemoResource {
     }
 
     private Observable<Object> handle100Continue(final HttpRequest request) {
-        return HttpUtil.is100ContinueExpected(request)
-            ? Observable.<Object>just(new _100ContinueResponse(), DoFlush.Util.flushOnly())
-            : Observable.empty();
+//        return HttpUtil.is100ContinueExpected(request)
+//            ? Observable.<Object>just(new _100ContinueResponse(), DoFlush.Util.flushOnly())
+//            : Observable.empty();
+        // TODO: fix it
+        return Observable.empty();
     }
 
     @Inject
