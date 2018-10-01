@@ -16,6 +16,7 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
+import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
@@ -464,14 +465,6 @@ public class DemoResource {
     }
     */
 
-//    static class _100ContinueResponse extends HeaderOnly implements WithStatus {
-//
-//        @Override
-//        public int status() {
-//            return 100;
-//        }
-//    }
-
     @Path("upload")
     @POST
     public Observable<Object> upload(
@@ -500,11 +493,9 @@ public class DemoResource {
     }
 
     private Observable<Object> handle100Continue(final HttpRequest request) {
-//        return HttpUtil.is100ContinueExpected(request)
-//            ? Observable.<Object>just(new _100ContinueResponse(), DoFlush.Util.flushOnly())
-//            : Observable.empty();
-        // TODO: fix it
-        return Observable.empty();
+        return HttpUtil.is100ContinueExpected(request)
+            ? Observable.<Object>just(ResponseUtil.response().setStatus(100), DoFlush.Util.flushOnly())
+            : Observable.empty();
     }
 
     @Inject
