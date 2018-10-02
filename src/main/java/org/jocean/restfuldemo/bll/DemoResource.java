@@ -158,93 +158,6 @@ public class DemoResource {
                 (buf, cls) -> MessageUtil.parseContentAsString(buf), String.class));
     }
 
-    /*
-    @Path("stream")
-    public Object bigresp(final WriteCtrl ctrl, @QueryParam("end") final Integer endNum) {
-
-        final AtomicInteger begin = new AtomicInteger(0);
-        final AtomicInteger count = new AtomicInteger(0);
-        final int end = endNum.intValue();
-
-        ctrl.sended().doOnNext(obj -> DisposableWrapperUtil.dispose(obj)).subscribe();
-
-        final Observable<? extends DisposableWrapper<ByteBuf>> content =
-            StreamUtil.<DemoState>buildContent(
-                    ctrl.sended(),
-                    state2dwb(begin, count, end),
-                    state -> end == state.endid)
-                .doOnNext(dwb -> {
-                    LOG.info("buildContent : onNext {}", dwb);
-                });
-
-        ctrl.setFlushPerWrite(true);
-
-        return Observable.just(new FullMessage<HttpResponse>() {
-
-            @Override
-            public HttpResponse message() {
-                final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-                resp.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_PLAIN);
-                HttpUtil.setTransferEncodingChunked(resp, true);
-                return resp;
-            }
-
-            @Override
-            public Observable<? extends MessageBody> body() {
-                return Observable.just(new MessageBody() {
-
-                    @Override
-                    public String contentType() {
-                        return null;
-                    }
-
-                    @Override
-                    public int contentLength() {
-                        return 0;
-                    }
-
-                    @Override
-                    public Observable<? extends ByteBufSlice> content() {
-                        return Observable.just(new ByteBufSlice(){
-
-                            @Override
-                            public void step() {
-                                // TODO Auto-generated method stub
-
-                            }
-
-                            @Override
-                            public Observable<? extends DisposableWrapper<? extends ByteBuf>> element() {
-                                return content;
-                            }});
-                    }
-                });
-            }
-        });
-    }
-
-    private Func1<DemoState, Observable<DisposableWrapper<ByteBuf>>> state2dwb(
-            final AtomicInteger begin,
-            final AtomicInteger count,
-            final int end) {
-        return state -> {
-            LOG.debug("obj with state: {} has been sended", state);
-            if (null == state || (state.startid == begin.get() && begin.get() + count.get() - 1 < end)) {
-                begin.set(null == state ? 1 : begin.get() + count.get());
-                count.set(Math.min(500, end - begin.get() + 1));
-                LOG.debug("start new batch from {} to {}", begin.get(), begin.get() + count.get() - 1);
-                return Observable.range(begin.get(), count.get()).compose(StreamUtil.src2dwb(
-                            ()-> StreamUtil.allocStateableDWB(8192),
-                            idx -> (Integer.toString(idx) + ".").getBytes(CharsetUtil.UTF_8),
-                            idx -> new DemoState(idx, idx),
-                            (idx, st) -> st.endid = idx ));
-            } else {
-                return null;
-            }
-        };
-    }
-    */
-
     @Path("hello")
     @OPTIONS
     @POST
@@ -378,42 +291,6 @@ public class DemoResource {
         return rpcs -> rpcs.flatMap(rpc -> rpc.execute(interact -> interact.uri(uri).path("/").execution())
                 .flatMap(interaction -> interaction.execute()));
     }
-
-    /*
-    private Func1<? super Observable<? extends Entry>, ? extends Object> zip(
-            final HttpResponse resp,
-            final AllocatorBuilder ab,
-            final Terminable terminable) {
-        return entries -> {
-            return new FullMessage() {
-                @Override
-                public <M extends HttpMessage> M message() {
-                    return (M)resp;
-                }
-
-                @Override
-                public Observable<? extends MessageBody> body() {
-                    return Observable.just(new MessageBody() {
-                        @Override
-                        public String contentType() {
-                            return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
-                        }
-                        @Override
-                        public int contentLength() {
-                            return -1;
-                        }
-                        @Override
-                        public Observable<? extends DisposableWrapper<ByteBuf>> content() {
-                            return ZipUtil.zip()
-                                    .allocator(ab.build(8192))
-                                    .entries(entries)
-                                    .hookcloser(closer -> terminable.doOnTerminate(closer))
-                                    .build();
-                        }});
-                }};
-         };
-    }
-    */
 
     public HttpResponse resp(final String filename) {
         final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
