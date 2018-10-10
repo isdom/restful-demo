@@ -307,41 +307,6 @@ public class DemoResource {
         return Observable.just("hi, ", name, "'s ", ua, ",from:", peerip);
     }
 
-    /* TO fix
-    @Path("foo100")
-    public Observable<Object> fooReply100continue(
-            final HttpMethod httpmethod,
-            @QueryParam("name") final String name,
-            @HeaderParam("user-agent") final String ua,
-            @HeaderParam("content-length") final String size,
-            final UntilRequestCompleted<Object> urc,
-            final _100ContinueAware handle100continue
-            ) {
-        handle100continue.setPredicate(new Func1<HttpRequest, Integer>() {
-            @Override
-            public Integer call(final HttpRequest r) {
-                if (Integer.parseInt(size) >= 1028) {
-                    LOG.info("upstream too long, sendback 417");
-                    return 417;
-                } else {
-                    LOG.info("sendback 100-continue");
-                    return 100;
-                }
-            }
-        });
-        return Observable.just(ResponseUtil.respWithStatus(200),
-                httpmethod.toString(),
-                "/",
-                "hi, ",
-                name,
-                "'s ",
-                ua,
-                ResponseUtil.emptyBody())
-            .compose(urc)
-            ;
-    }
-    */
-
     @Path("upload")
     @POST
     public Observable<Object> upload(
