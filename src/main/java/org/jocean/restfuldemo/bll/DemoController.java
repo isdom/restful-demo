@@ -21,11 +21,13 @@ import org.jocean.http.FullMessage;
 import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
+import org.jocean.http.RpcExecutor;
 import org.jocean.http.RpcRunner;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.lbsyun.LbsyunAPI;
+import org.jocean.lbsyun.LbsyunUtil;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
@@ -67,9 +69,9 @@ import rx.Observable.Transformer;
 @Path("/newrest/")
 @Controller
 @Scope("singleton")
-public class DemoResource {
+public class DemoController {
     private static final Logger LOG
-        = LoggerFactory.getLogger(DemoResource.class);
+        = LoggerFactory.getLogger(DemoController.class);
 
     @Path("download")
     public WithBody download(@QueryParam("key") final String key, final InteractBuilder ib) {
@@ -86,19 +88,16 @@ public class DemoResource {
     public Observable<Object>  getCityByIpV2(
             @QueryParam("ip") final String ip,
             final InteractBuilder ib) {
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
-        return _finder.find(LbsyunAPI.class).flatMap(
-                api -> {
-                    return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
-                            .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
-                            .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
-                        @Override
-                        protected Observable<LbsyunAPI.PositionResponse> construct() {
-                            return rpcs.compose(api.ip2position(ip, LbsyunAPI.COOR_GCJ02));
-                        }
-                    }.toObservable();
-                })
-                .map(resp -> ResponseUtil.responseAsJson(200, resp));
+        final RpcExecutor executor = new RpcExecutor(FinderUtil.rpc(this._finder).ib(ib).runner());
+
+        return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
+                .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
+                .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
+            @Override
+            protected Observable<LbsyunAPI.PositionResponse> construct() {
+                return executor.execute(LbsyunUtil.ip2position(_finder, ip));
+            }
+        }.toObservable().map(resp -> ResponseUtil.responseAsJson(200, resp));
     }
 
     @SuppressWarnings("unchecked")

@@ -40,7 +40,7 @@ children:
       after = retry.default, timeout.default
   - name: rpcs_top.org.jocean.restfuldemo.bll.DemoResource
     parameters: |
-      name=org.jocean.restfuldemo.bll.DemoResource
+      name=org.jocean.restfuldemo.bll.DemoController
       before = 
       after = 
     children:
@@ -60,6 +60,7 @@ children:
   - name: service
     parameters: |
       demo.action=hi
+  - name: hystrixstream
   - name: statrest
   - name: cors
   - name: logrest
@@ -94,7 +95,7 @@ children:
           - name: set_interceptor.demo
             parameters: |
               # Resource Class
-              resource.class=org.jocean.restfuldemo.bll.DemoResource
+              resource.class=org.jocean.restfuldemo.bll.DemoController
               # interceptors (full class name) to attach
               resource.interceptors=\
               org.jocean.svr.interceptor.StatRest,\

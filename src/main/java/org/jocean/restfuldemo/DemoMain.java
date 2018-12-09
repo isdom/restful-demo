@@ -4,6 +4,8 @@
 package org.jocean.restfuldemo;
 
 import org.jocean.j2se.booter.LocalMain;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -11,6 +13,9 @@ import org.jocean.j2se.booter.LocalMain;
  *
  */
 public class DemoMain {
+    private static final Logger LOG
+    = LoggerFactory.getLogger(DemoMain.class);
+
     /**
      * @param args
      * @throws Exception
