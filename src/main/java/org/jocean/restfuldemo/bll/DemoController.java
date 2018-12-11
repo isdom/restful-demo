@@ -242,8 +242,8 @@ public class DemoController {
             }
 
             @Override
-            public Observable<ByteBufSlice> slices() {
-                return (Observable<ByteBufSlice>) rpcs.compose(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
+            public Observable<? extends ByteBufSlice> slices() {
+                return rpcs.compose(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
                     @Override
                     public String entryName() {
                         return "123.txt";
