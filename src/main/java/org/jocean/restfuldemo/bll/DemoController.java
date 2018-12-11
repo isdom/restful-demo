@@ -252,7 +252,7 @@ public class DemoController {
                     public Observable<? extends ByteBufSlice> body() {
                         return body.content().doOnNext( bbs -> {
                             LOG.debug("=========== source slice: {}", bbs);
-                            final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                            final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = Observable.from(bbs.element()).toList().toBlocking().single();
                             LOG.debug("=========== source to zip begin");
                             for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
                                 LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
@@ -263,7 +263,7 @@ public class DemoController {
                 .compose(zb.zip(8192,512))
                 .doOnNext( bbs -> {
                     LOG.debug("=========== zipped slice: {}", bbs);
-                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = Observable.from(bbs.element()).toList().toBlocking().single();
                     LOG.debug("------------ zipped begin");
                     for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
                         LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
@@ -277,7 +277,7 @@ public class DemoController {
                 })
                 .doOnNext( bbs -> {
                     LOG.debug("=========== unzipped slice: {}", bbs);
-                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = bbs.element().toList().toBlocking().single();
+                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = Observable.from(bbs.element()).toList().toBlocking().single();
                     for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
                         unzipedSize.addAndGet( dwb.unwrap().readableBytes() );
                     }
