@@ -52,7 +52,6 @@ import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixObservableCommand;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
@@ -74,8 +73,8 @@ public class DemoController {
         = LoggerFactory.getLogger(DemoController.class);
 
     @Path("download")
-    public WithBody download(@QueryParam("key") final String key, final InteractBuilder ib) {
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
+    public WithBody download(@QueryParam("key") final String key, final InteractBuilder ib, final BeanFinder finder) {
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
 
         return new WithRawBody() {
             @Override
@@ -87,23 +86,24 @@ public class DemoController {
     @Path("ipv2")
     public Observable<Object>  getCityByIpV2(
             @QueryParam("ip") final String ip,
-            final InteractBuilder ib) {
-        final RpcExecutor executor = new RpcExecutor(FinderUtil.rpc(this._finder).ib(ib).runner());
+            final InteractBuilder ib,
+            final BeanFinder finder) {
+        final RpcExecutor executor = new RpcExecutor(FinderUtil.rpc(finder).ib(ib).runner());
 
         return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
                 .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
                 .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
             @Override
             protected Observable<LbsyunAPI.PositionResponse> construct() {
-                return executor.execute(LbsyunUtil.ip2position(_finder, ip));
+                return executor.execute(LbsyunUtil.ip2position(finder, ip));
             }
         }.toObservable().map(resp -> ResponseUtil.responseAsJson(200, resp));
     }
 
     @SuppressWarnings("unchecked")
     @Path("helloredis")
-    public Observable<Object> helloredis() {
-        return this._finder.find(RedisClient.class)
+    public Observable<Object> helloredis(final BeanFinder finder) {
+        return finder.find(RedisClient.class)
                 .flatMap(redis->redis.getConnection())
                 .compose(RedisUtil.interactWithRedis(
                         RedisUtil.cmdSet("demo_key", "new hello, redis").nx().build(),
@@ -117,17 +117,18 @@ public class DemoController {
     }
 
     @Path("qrcode/{wpa}")
-    public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib) {
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
+    public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib, final BeanFinder finder) {
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
 
-        return this._finder.find(wpa, WechatAPI.class)
+        return finder.find(wpa, WechatAPI.class)
                 .flatMap(api-> rpcs.compose(api.createVolatileQrcode(2592000, "ABC")))
                 .map(location->ResponseUtil.redirectOnly(location));
     }
 
     @Path("metaof/{obj}")
-    public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final InteractBuilder ib) {
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
+    public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final InteractBuilder ib,
+            final BeanFinder finder) {
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
 
         return rpcs.compose(_repo.getSimplifiedObjectMeta(objname))
             .map(meta -> {
@@ -225,7 +226,8 @@ public class DemoController {
     public BinaryResponse proxy(
             @QueryParam("uri") final String uri,
             final TradeContext tctx,
-            final ZipBuilder zb) {
+            final ZipBuilder zb,
+            final BeanFinder finder) {
 
         tctx.writeCtrl().sended().subscribe(msg -> DisposableWrapperUtil.dispose(msg));
 
@@ -233,7 +235,7 @@ public class DemoController {
 
         tctx.terminable().doOnTerminate(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
 
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(tctx.interactBuilder()).runner();
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(tctx.interactBuilder()).runner();
 
         return new BinaryResponse("1.zip") {
             @Override
@@ -252,23 +254,23 @@ public class DemoController {
                     public Observable<? extends ByteBufSlice> body() {
                         return body.content().doOnNext( bbs -> {
                             LOG.debug("=========== source slice: {}", bbs);
-                            final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = Observable.from(bbs.element()).toList().toBlocking().single();
-                            LOG.debug("=========== source to zip begin");
-                            for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                                LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
-                            }
-                            LOG.debug("=========== source to zip end");
+//                            final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = Observable.from(bbs.element()).toList().toBlocking().single();
+//                            LOG.debug("=========== source to zip begin");
+//                            for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+//                                LOG.debug("source to zip:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+//                            }
+//                            LOG.debug("=========== source to zip end");
                         });
                     }})
                 .compose(zb.zip(8192,512))
                 .doOnNext( bbs -> {
                     LOG.debug("=========== zipped slice: {}", bbs);
-                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = Observable.from(bbs.element()).toList().toBlocking().single();
-                    LOG.debug("------------ zipped begin");
-                    for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
-                        LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
-                    }
-                    LOG.debug("------------ zipped end");
+//                    final List<? extends DisposableWrapper<? extends ByteBuf>> dwbs = Observable.from(bbs.element()).toList().toBlocking().single();
+//                    LOG.debug("------------ zipped begin");
+//                    for (final DisposableWrapper<? extends ByteBuf> dwb : dwbs) {
+//                        LOG.debug("zipped:\r\n{}", ByteBufUtil.prettyHexDump(dwb.unwrap()));
+//                    }
+//                    LOG.debug("------------ zipped end");
                 })
                 .compose(zb.unzip(8192, 512))
                 .flatMap(entity -> {
@@ -311,10 +313,11 @@ public class DemoController {
     public Observable<Object> upload(
             final HttpRequest request,
             final Observable<MessageBody> omb,
-            final InteractBuilder ib) {
+            final InteractBuilder ib,
+            final BeanFinder finder) {
 
         final AtomicInteger idx = new AtomicInteger(0);
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(this._finder).ib(ib).runner();
+        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
 
         final Observable<Object> prefix = handle100Continue(request);
         return prefix.concatWith(omb.flatMap(body -> {
@@ -341,7 +344,4 @@ public class DemoController {
 
     @Inject
     private BlobRepoOverOSS _repo;
-
-    @Inject
-    private BeanFinder _finder;
 }
