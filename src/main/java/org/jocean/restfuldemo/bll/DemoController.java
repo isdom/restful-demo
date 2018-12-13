@@ -86,10 +86,8 @@ public class DemoController {
     @Path("ipv2")
     public Observable<Object>  getCityByIpV2(
             @QueryParam("ip") final String ip,
-            final InteractBuilder ib,
+            final RpcExecutor executor,
             final BeanFinder finder) {
-        final RpcExecutor executor = new RpcExecutor(FinderUtil.rpc(finder).ib(ib).runner());
-
         return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
                 .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
                 .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
