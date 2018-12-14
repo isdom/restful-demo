@@ -1,10 +1,10 @@
 name: units
 parameters: |
-  __spring.xml=unit/apistats.xml
+  __spring.xml=unit/apistats.xml, svr/rpc_executor.xml
 children:
   - name: lbsyunapi.smt
     parameters: |
-      api.baiduak=XXXXXX
+      api.baiduak=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   - name: interact_features.logging
     parameters: |
       name=logging
@@ -38,7 +38,7 @@ children:
     parameters: |
       before = logging
       after = retry.default, timeout.default
-  - name: rpcs_top.org.jocean.restfuldemo.bll.DemoResource
+  - name: rpcs_top.org.jocean.restfuldemo.bll.DemoController
     parameters: |
       name=org.jocean.restfuldemo.bll.DemoController
       before = 

@@ -84,16 +84,15 @@ public class DemoController {
     }
 
     @Path("ipv2")
-    public Observable<Object>  getCityByIpV2(
-            @QueryParam("ip") final String ip,
-            final RpcExecutor executor,
+    public Observable<Object>  getCityByIpV2(@QueryParam("ip") final String ip,
+//            final RpcExecutor executor,
             final BeanFinder finder) {
         return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
                 .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
                 .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
             @Override
             protected Observable<LbsyunAPI.PositionResponse> construct() {
-                return executor.execute(LbsyunUtil.ip2position(finder, ip));
+                return _executor.execute(LbsyunUtil.ip2position(finder, ip));
             }
         }.toObservable().map(resp -> ResponseUtil.responseAsJson(200, resp));
     }
@@ -342,4 +341,7 @@ public class DemoController {
 
     @Inject
     private BlobRepoOverOSS _repo;
+
+    @Inject
+    RpcExecutor _executor;
 }
