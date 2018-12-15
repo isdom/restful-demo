@@ -23,10 +23,12 @@ dependencies {
     compile 'org.jocean:jocean-jdmk:0.0.2'
     compile 'org.jocean:jocean-svr:0.0.1-SNAPSHOT'
     
-    compile 'org.jocean:jocean-aliyun:0.0.1-SNAPSHOT'
-    compile 'org.jocean:jocean-wechat:0.0.1-SNAPSHOT'
-    compile 'org.jocean:jocean-redis:0.0.1-SNAPSHOT'
-    compile 'org.jocean:jocean-lbsyun:0.0.1-SNAPSHOT'
+    compile('org.jocean:jocean-aliyun:0.0.1-SNAPSHOT') { transitive = false }
+    compile('org.jocean:jocean-wechat:0.0.1-SNAPSHOT') { transitive = false }
+    compile('org.jocean:jocean-redis:0.0.1-SNAPSHOT') { transitive = false }
+    compile('org.jocean:jocean-lbsyun:0.0.1-SNAPSHOT') { transitive = false }
+    
+    compile "io.netty:netty-all:${nettyVersion}"
     
     compile 'com.netflix.hystrix:hystrix-core:1.5.12'
     compile 'com.netflix.hystrix:hystrix-metrics-event-stream:1.5.12'
