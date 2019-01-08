@@ -26,12 +26,12 @@ import org.jocean.http.RpcRunner;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.lbsyun.LbsyunAPI;
 import org.jocean.lbsyun.LbsyunUtil;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.FinderUtil;
+import org.jocean.svr.ResponseBean;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.TradeContext;
 import org.jocean.svr.UntilRequestCompleted;
@@ -46,10 +46,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
-
-import com.netflix.hystrix.HystrixCommandGroupKey;
-import com.netflix.hystrix.HystrixCommandKey;
-import com.netflix.hystrix.HystrixObservableCommand;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
@@ -72,6 +68,18 @@ public class DemoController {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoController.class);
 
+    @Path("listobj")
+    public Observable<String> list( @QueryParam("prefix") final String prefix,
+            final RpcExecutor executor, final BeanFinder finder) {
+        return executor.execute(finder.find(BlobRepoOverOSS.class).map(repo -> repo.listObjects(prefix)))
+                .map(listing -> listing.toString());
+    }
+
+    @Path("redirect")
+    public ResponseBean redirect() {
+        return ResponseUtil.redirectOnly("http://www.baidu.com");
+    }
+
     @Path("download")
     public WithBody download(@QueryParam("key") final String key, final InteractBuilder ib, final BeanFinder finder) {
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
@@ -85,16 +93,10 @@ public class DemoController {
 
     @Path("ipv2")
     public Observable<Object>  getCityByIpV2(@QueryParam("ip") final String ip,
-//            final RpcExecutor executor,
+            final RpcExecutor executor,
             final BeanFinder finder) {
-        return new HystrixObservableCommand<LbsyunAPI.PositionResponse>(HystrixObservableCommand.Setter
-                .withGroupKey(HystrixCommandGroupKey.Factory.asKey("GetCityByIpV2"))
-                .andCommandKey(HystrixCommandKey.Factory.asKey("GetCityByIpV2"))) {
-            @Override
-            protected Observable<LbsyunAPI.PositionResponse> construct() {
-                return _executor.execute(LbsyunUtil.ip2position(finder, ip));
-            }
-        }.toObservable().map(resp -> ResponseUtil.responseAsJson(200, resp));
+        return executor.execute(LbsyunUtil.ip2position(finder, ip))
+                .map(resp -> ResponseUtil.responseAsJson(200, resp));
     }
 
     @SuppressWarnings("unchecked")
@@ -203,9 +205,9 @@ public class DemoController {
     }
 
     @Path("asjson")
-    public Observable<Object> asjson(final Observable<MessageBody> omb) {
+    public Observable<Object> asjson(final Observable<MessageBody> omb, final UntilRequestCompleted<Object> urc) {
         return omb.flatMap(body -> MessageUtil.<DemoRequest>decodeJsonAs(body, DemoRequest.class))
-                .map(req -> ResponseUtil.responseAsJson(200, req));
+                .map(req -> ResponseUtil.responseAsJson(200, req)).compose(urc);
     }
 
     static abstract class BinaryResponse implements WithSlice {
@@ -286,8 +288,7 @@ public class DemoController {
     }
 
     private Transformer<RpcRunner, FullMessage<HttpResponse>> fetch(final String uri) {
-        return rpcs -> rpcs.flatMap(rpc -> rpc.execute(interact -> interact.uri(uri).path("/").execution())
-                .flatMap(interaction -> interaction.execute()));
+        return runners -> runners.flatMap(runner -> runner.execute(interact -> interact.uri(uri).path("/").response()));
     }
 
     public HttpResponse resp(final String filename) {
@@ -309,20 +310,20 @@ public class DemoController {
     @POST
     public Observable<Object> upload(
             final HttpRequest request,
-            final Observable<MessageBody> omb,
-            final InteractBuilder ib,
+            final Observable<MessageBody> getbody,
+            final RpcExecutor executor,
             final BeanFinder finder) {
 
         final AtomicInteger idx = new AtomicInteger(0);
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
 
         final Observable<Object> prefix = handle100Continue(request);
-        return prefix.concatWith(omb.flatMap(body -> {
+        return prefix.concatWith(getbody.flatMap(body -> {
             LOG.debug(idx.get() + ": MessageBody {}", body);
             if (body.contentType().startsWith(HttpHeaderValues.APPLICATION_JSON.toString())) {
                 return MessageUtil.decodeJsonAs(body, DemoRequest.class).map(req -> req.toString());
             } else {
-                return rpcs.compose(_repo.putObject().content(body).objectName(Integer.toString(idx.get())).build())
+                return executor.execute(finder.find(BlobRepoOverOSS.class).map(repo ->
+                    repo.putObject().content(body).objectName(Integer.toString(idx.get())).build()))
                     .map(key-> ResponseUtil.responseAsText(200,
                             "\r\n["
                         + idx.getAndIncrement()

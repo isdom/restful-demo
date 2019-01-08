@@ -28,6 +28,9 @@ dependencies {
     compile('org.jocean:jocean-redis:0.0.1-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-lbsyun:0.0.1-SNAPSHOT') { transitive = false }
     
+    /* for aliyun-sdk-oss */
+    compile 'com.aliyun.oss:aliyun-sdk-oss:3.3.0'
+    
     compile "io.netty:netty-all:${nettyVersion}"
     
     compile 'com.netflix.hystrix:hystrix-core:1.5.12'
