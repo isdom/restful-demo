@@ -1,4 +1,4 @@
-package org.jocean.restfuldemo.bll;
+package org.jocean.restfuldemo.ctrl;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -104,7 +104,7 @@ public class DemoController {
     public Observable<Object> helloredis(final BeanFinder finder) {
         return finder.find(RedisClient.class)
                 .flatMap(redis->redis.getConnection())
-                .compose(RedisUtil.interactWithRedis(
+                .compose(RedisUtil.interacts(
                         RedisUtil.cmdSet("demo_key", "new hello, redis").nx().build(),
                         RedisUtil.ifOKThenElse(
                             RedisUtil.cmdGet("demo_key"),

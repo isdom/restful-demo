@@ -7,9 +7,9 @@
         http://www.springframework.org/schema/context
         http://www.springframework.org/schema/context/spring-context.xsd">
         
-    <!-- auto scan package org.jocean.restfuldemo.bll.* -->
+    <!-- auto scan package org.jocean.restfuldemo.ctrl.* -->
     <context:component-scan annotation-config="false"
-        base-package="org.jocean.restfuldemo.bll"
+        base-package="org.jocean.restfuldemo.ctrl"
     />
           
 </beans>

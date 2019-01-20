@@ -13,8 +13,7 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class DemoMain {
-    private static final Logger LOG
-    = LoggerFactory.getLogger(DemoMain.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DemoMain.class);
 
     /**
      * @param args

@@ -5,4 +5,4 @@
  * @author isdom
  *
  */
-package org.jocean.restfuldemo.bll;
+package org.jocean.restfuldemo.ctrl;
