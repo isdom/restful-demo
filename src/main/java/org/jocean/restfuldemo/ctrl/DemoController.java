@@ -115,6 +115,15 @@ public class DemoController {
                 .map(resp->resp.toString());
     }
 
+    @SuppressWarnings("unchecked")
+    @Path("redis_get")
+    public Observable<Object> redisGet(final BeanFinder finder, @QueryParam("key") final String key) {
+        return finder.find(RedisClient.class)
+                .flatMap(redis->redis.getConnection())
+                .compose(RedisUtil.interacts(RedisUtil.cmdGet(key)))
+                .map(resp-> RedisUtil.isNull(resp) ? "key(" + key + ") not exist" : RedisUtil.dumpAggregatedRedisMessage(resp));
+    }
+
     @Path("qrcode/{wpa}")
     public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib, final BeanFinder finder) {
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();

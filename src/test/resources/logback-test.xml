@@ -53,7 +53,7 @@
         <appender-ref ref="file"/>
     </appender>
 
-    <root level="WARN">
+    <root level="DEBUG">
         <appender-ref ref="stdout"/>
         <appender-ref ref="ASYNC"/>
         <appender-ref ref="errorFile"/>
