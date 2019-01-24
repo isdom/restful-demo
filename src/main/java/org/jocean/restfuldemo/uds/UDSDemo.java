@@ -9,7 +9,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.unix.DomainSocketAddress;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -32,9 +31,9 @@ public class UDSDemo {
                         .channel(EpollServerDomainSocketChannel.class)
                         .option(ChannelOption.SO_BACKLOG, 100)
                         .handler(new LoggingHandler(LogLevel.INFO))
-                        .childHandler(new ChannelInitializer<SocketChannel>() {
+                        .childHandler(new ChannelInitializer<Channel>() {
                             @Override
-                            protected void initChannel(final SocketChannel channel) throws Exception {
+                            protected void initChannel(final Channel channel) throws Exception {
                                 final ChannelPipeline p = channel.pipeline();
                                 p.addLast(serverHandler);
                             }});
