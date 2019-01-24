@@ -35,6 +35,7 @@ public class UDSDemo {
                             @Override
                             protected void initChannel(final Channel channel) throws Exception {
                                 final ChannelPipeline p = channel.pipeline();
+                                p.addLast(new LoggingHandler(LogLevel.INFO));
                                 p.addLast(serverHandler);
                             }});
         final DomainSocketAddress localAddress = new DomainSocketAddress("./demo.socket");
