@@ -68,6 +68,11 @@ public class DemoController {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoController.class);
 
+    @Path("echo")
+    public Observable<String> echo(@QueryParam("s") final String s, final UntilRequestCompleted<String> urc) {
+        return Observable.just(s).compose(urc);
+    }
+
     @Path("listobj")
     public Observable<String> list( @QueryParam("prefix") final String prefix,
             final RpcExecutor executor, final BeanFinder finder) {
