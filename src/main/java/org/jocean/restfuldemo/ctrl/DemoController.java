@@ -69,6 +69,20 @@ public class DemoController {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoController.class);
 
+    @Path("private-ipv4")
+    public Observable<String> private_ipv4(final RpcExecutor executor,
+            final BeanFinder finder,
+            final UntilRequestCompleted<String> urc) {
+        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getPrivateIpv4())).compose(urc);
+    }
+
+    @Path("hostname")
+    public Observable<String> hostname(final RpcExecutor executor,
+            final BeanFinder finder,
+            final UntilRequestCompleted<String> urc) {
+        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getHostname())).compose(urc);
+    }
+
     @Path("instance")
     public Observable<String> instance(final RpcExecutor executor,
             final BeanFinder finder,
