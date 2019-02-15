@@ -14,6 +14,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
+import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.DoFlush;
@@ -67,6 +68,28 @@ import rx.Observable.Transformer;
 public class DemoController {
     private static final Logger LOG
         = LoggerFactory.getLogger(DemoController.class);
+
+    @Path("instance")
+    public Observable<String> instance(final RpcExecutor executor,
+            final BeanFinder finder,
+            final UntilRequestCompleted<String> urc) {
+        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getInstanceId())).compose(urc);
+    }
+
+    @Path("region")
+    public Observable<String> region(final RpcExecutor executor,
+            final BeanFinder finder,
+            final UntilRequestCompleted<String> urc) {
+        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getRegionId())).compose(urc);
+    }
+
+    @Path("sts-token")
+    public Observable<Object> ststoken(final RpcExecutor executor,
+            final BeanFinder finder,
+            @QueryParam("role") final String roleName,
+            final UntilRequestCompleted<Object> urc) {
+        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getSTSToken(roleName))).compose(urc);
+    }
 
     @Path("echo")
     public Observable<String> echo(@QueryParam("s") final String s, final UntilRequestCompleted<String> urc) {
