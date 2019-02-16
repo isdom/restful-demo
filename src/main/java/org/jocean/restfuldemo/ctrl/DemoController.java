@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
@@ -106,8 +107,8 @@ public class DemoController {
     }
 
     @Path("echo")
-    public Observable<String> echo(@QueryParam("s") final String s, final UntilRequestCompleted<String> urc) {
-        return Observable.just(s).compose(urc);
+    public Observable<String> echo(@QueryParam("s") final String s, @QueryParam("delay") final int delay, final UntilRequestCompleted<String> urc) {
+        return Observable.just(s).delay(delay, TimeUnit.MILLISECONDS).compose(urc);
     }
 
     @Path("listobj")
