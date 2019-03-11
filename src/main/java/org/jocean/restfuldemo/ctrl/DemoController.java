@@ -42,10 +42,13 @@ import org.jocean.svr.WithRawBody;
 import org.jocean.svr.WithSlice;
 import org.jocean.svr.ZipUtil.TozipEntity;
 import org.jocean.svr.ZipUtil.ZipBuilder;
+import org.jocean.wechat.AuthorizedMP;
+import org.jocean.wechat.WXCommonAPI;
 import org.jocean.wechat.WechatAPI;
 //import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
@@ -67,8 +70,26 @@ import rx.Observable.Transformer;
 @Controller
 @Scope("singleton")
 public class DemoController {
-    private static final Logger LOG
-        = LoggerFactory.getLogger(DemoController.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
+
+    @Value("${wx.appid}")
+    String _appid;
+
+    @Path("wxmedia")
+    @POST
+    public Observable<String> wxmedia(
+            final Observable<MessageBody> getbody,
+            final RpcExecutor executor,
+            final BeanFinder finder) {
+
+        return executor.execute( finder.find(_appid, AuthorizedMP.class).flatMap(mp -> finder.find(WXCommonAPI.class)
+                .map(wcapi -> wcapi.uploadTempMedia(mp.getAccessToken(), "tempimg", getbody))))
+            .doOnNext(resp -> LOG.info("upload temp media: {}", resp.getMediaId()))
+            .flatMap(resp -> executor.execute(finder.find(_appid, AuthorizedMP.class).flatMap(mp -> finder.find(WXCommonAPI.class)
+                    .map(wcapi -> wcapi.getTempMedia(mp.getAccessToken(), resp.getMediaId())))))
+            .map(body -> body.contentType() + "/" + body.contentLength())
+        ;
+    }
 
     @Path("private-ipv4")
     public Observable<String> private_ipv4(final RpcExecutor executor,
