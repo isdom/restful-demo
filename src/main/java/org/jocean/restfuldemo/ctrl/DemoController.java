@@ -78,13 +78,14 @@ public class DemoController {
     @Path("wxmedia")
     @POST
     public Observable<Object> wxmedia(
+            @QueryParam("name") final String name,
             @QueryParam("filename") final String filename,
             final Observable<MessageBody> getbody,
             final RpcExecutor executor,
             final BeanFinder finder) {
 
         return executor.execute( finder.find(_appid, AuthorizedMP.class).flatMap(mp -> finder.find(WXCommonAPI.class)
-                .map(wcapi -> wcapi.uploadTempMedia(mp.getAccessToken(), "media", filename, getbody))))
+                .map(wcapi -> wcapi.uploadTempMedia(mp.getAccessToken(), name, filename, getbody))))
             .doOnNext(resp -> LOG.info("upload temp media: {}", resp.getMediaId()))
             .flatMap(resp -> executor.execute(finder.find(_appid, AuthorizedMP.class).flatMap(mp -> finder.find(WXCommonAPI.class)
                     .map(wcapi -> wcapi.getTempMedia(mp.getAccessToken(), resp.getMediaId())))))
