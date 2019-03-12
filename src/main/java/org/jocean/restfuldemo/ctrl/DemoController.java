@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Inject;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.OPTIONS;
@@ -74,6 +76,25 @@ public class DemoController {
 
     @Value("${wx.appid}")
     String _appid;
+
+    private String hmac_sha1(final byte[] bytes, final byte[] keyBytes) {
+        try {
+            final SecretKeySpec signingKey = new SecretKeySpec(keyBytes, "HmacSHA1");
+            final Mac mac = Mac.getInstance("HmacSHA1");
+            mac.init(signingKey);
+
+//            final ByteBuf buf = Unpooled.wrappedBuffer(array);
+//
+//            buf.
+//            mac.update(new ByteBuffer());
+//            final byte[] rawHmac = mac.doFinal(bytes);
+//            final String digest = toHexString(rawHmac);
+//            return digest;
+            return null;
+        } catch (final Exception ex) {
+            return null;
+        }
+    }
 
     @Path("wxmedia")
     @POST
@@ -306,7 +327,7 @@ public class DemoController {
 
         final AtomicInteger unzipedSize = new AtomicInteger(0);
 
-        tctx.terminable().doOnTerminate(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
+        tctx.endable().doOnEnd(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
 
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(tctx.interactBuilder()).runner();
 
