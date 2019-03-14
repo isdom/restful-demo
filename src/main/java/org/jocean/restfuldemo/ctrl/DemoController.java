@@ -1,14 +1,16 @@
 package org.jocean.restfuldemo.ctrl;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Inject;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.OPTIONS;
@@ -17,12 +19,13 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
+import org.jocean.aliyun.BlobRepo;
+import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
-import org.jocean.http.InteractBuilder;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
 import org.jocean.http.RpcExecutor;
@@ -30,7 +33,9 @@ import org.jocean.http.RpcRunner;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.lbsyun.LbsyunUtil;
+import org.jocean.netty.util.BufsInputStream;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
@@ -46,6 +51,7 @@ import org.jocean.svr.ZipUtil.TozipEntity;
 import org.jocean.svr.ZipUtil.ZipBuilder;
 import org.jocean.wechat.AuthorizedMP;
 import org.jocean.wechat.WXCommonAPI;
+import org.jocean.wechat.WXCommonAPI.UploadTempMediaResponse;
 import org.jocean.wechat.WechatAPI;
 //import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
@@ -53,6 +59,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
+
+import com.google.common.io.ByteStreams;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
@@ -67,6 +75,7 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import rx.Observable;
 import rx.Observable.Transformer;
+import rx.functions.Actions;
 
 @Path("/newrest/")
 @Controller
@@ -77,23 +86,104 @@ public class DemoController {
     @Value("${wx.appid}")
     String _appid;
 
-    private String hmac_sha1(final byte[] bytes, final byte[] keyBytes) {
-        try {
-            final SecretKeySpec signingKey = new SecretKeySpec(keyBytes, "HmacSHA1");
-            final Mac mac = Mac.getInstance("HmacSHA1");
-            mac.init(signingKey);
+    @Path("wx-ccs")
+    @POST
+    public Observable<String> wx_ccs(
+            @QueryParam("name") final String name,
+            @QueryParam("filename") final String filename,
+            @QueryParam("tnt") final String tntInstId,
+            final Observable<MessageBody> bodys,
+            final RpcExecutor executor,
+            final BeanFinder finder) {
 
-//            final ByteBuf buf = Unpooled.wrappedBuffer(array);
-//
-//            buf.
-//            mac.update(new ByteBuffer());
-//            final byte[] rawHmac = mac.doFinal(bytes);
-//            final String digest = toHexString(rawHmac);
-//            return digest;
-            return null;
-        } catch (final Exception ex) {
-            return null;
+        final AtomicReference<Mac> macRef = new AtomicReference<>();
+        final AtomicInteger bodySize = new AtomicInteger(0);
+
+        return executor.execute( uploadMediaToWX(finder, this._appid, name, filename, bodys) )
+            .doOnNext(resp -> LOG.info("upload temp media: {}", resp.getMediaId()))
+            .flatMap(resp -> executor.execute( getMediaFromWX(finder, this._appid, resp.getMediaId()) ))
+            .doOnNext(body -> LOG.info("get temp media: {} / {}", body.contentType(), body.contentLength()))
+            .flatMap(body -> finder.find(CCSChatAPI.class).map(ccs -> {
+                macRef.set( ccs.digestInstance() );
+
+                final Observable<ByteBufSlice> content4digest = body.content().map(bbs -> {
+                    final Iterable<DisposableWrapper<? extends ByteBuf>> slice = slice(bbs.element());
+
+                    bodySize.addAndGet(updateDigest(macRef.get(), bbs.element()).length);
+
+                    return (ByteBufSlice)new ByteBufSlice() {
+                        @Override
+                        public void step() {
+                            bbs.step();
+                        }
+                        @Override
+                        public Iterable<? extends DisposableWrapper<? extends ByteBuf>> element() {
+                            return slice;
+                        }};
+                });
+                return (MessageBody)new MessageBody() {
+                    @Override
+                    public String contentType() {
+                        return body.contentType();
+                    }
+
+                    @Override
+                    public int contentLength() {
+                        return body.contentLength();
+                    }
+                    @Override
+                    public Observable<? extends ByteBufSlice> content() {
+                        return content4digest;
+                    }};
+            }))
+            .flatMap(body -> executor.execute(finder.find(BlobRepo.class)
+                    .map(repo -> repo.putObject().objectName(name).content(body).build())))
+            .doOnNext(putresult -> LOG.info("upload to oss: {}", putresult))
+            .flatMap(putresult -> executor.execute(finder.find(BlobRepo.class)
+                    .map(repo -> repo.getObject(putresult.objectName()))))
+            .doOnNext(body -> LOG.info("get from oss: {} / {}", body.contentType(), body.contentLength()))
+            .flatMap(body -> executor.execute(finder.find(CCSChatAPI.class)
+                    .map(ccs -> ccs.uploadFile(tntInstId, System.currentTimeMillis(), "image", filename,
+                            Observable.just(body), macRef.get()))))
+            .doOnNext(ss -> LOG.info("upload to ccs: {} and bodySize is{}", ss, bodySize.get()))
+        ;
+    }
+
+    private byte[] updateDigest(final Mac digest, final Iterable<? extends DisposableWrapper<? extends ByteBuf>> dwbs) {
+        final BufsInputStream<DisposableWrapper<? extends ByteBuf>> is = new BufsInputStream<>(
+                dwb->dwb.unwrap(), Actions.empty());
+        is.appendIterable(dwbs);
+        is.markEOS();
+
+        try {
+            final byte[] bytes = ByteStreams.toByteArray(is);
+            digest.update(bytes);
+            return bytes;
+        } catch (final IOException e) {
+            LOG.warn("exception when calc digest, detail: {}", ExceptionUtils.exception2detail(e));
+            return new byte[0];
         }
+    }
+
+    private static Iterable<DisposableWrapper<? extends ByteBuf>> slice(
+            final Iterable<? extends DisposableWrapper<? extends ByteBuf>> element) {
+        final List<DisposableWrapper<? extends ByteBuf>> duplicated = new ArrayList<>();
+        for (final DisposableWrapper<? extends ByteBuf> dwb : element) {
+            duplicated.add(DisposableWrapperUtil.wrap(dwb.unwrap().slice(), dwb));
+        }
+        return duplicated;
+    }
+
+    private Observable<Transformer<RpcRunner, UploadTempMediaResponse>> uploadMediaToWX(final BeanFinder finder,
+            final String appid, final String name, final String filename, final Observable<MessageBody> bodys) {
+        return Observable.zip(finder.find(appid, AuthorizedMP.class), finder.find(WXCommonAPI.class),
+                (mp, wcapi)-> wcapi.uploadTempMedia(mp.getAccessToken(), name, filename, bodys));
+    }
+
+    private Observable<Transformer<RpcRunner, MessageBody>> getMediaFromWX(final BeanFinder finder,
+            final String appid, final String mediaId) {
+        return Observable.zip(finder.find(appid, AuthorizedMP.class), finder.find(WXCommonAPI.class),
+                (mp, wcapi)-> wcapi.getTempMedia(mp.getAccessToken(), mediaId));
     }
 
     @Path("wxmedia")
@@ -167,13 +257,11 @@ public class DemoController {
     }
 
     @Path("download")
-    public WithBody download(@QueryParam("key") final String key, final InteractBuilder ib, final BeanFinder finder) {
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
-
+    public WithBody download(@QueryParam("key") final String key, final RpcExecutor executor, final BeanFinder finder) {
         return new WithRawBody() {
             @Override
             public Observable<? extends MessageBody> body() {
-                return rpcs.compose(_repo.getObject(key));
+                return executor.execute(_repo.getObject(key));
             }};
     }
 
@@ -211,20 +299,15 @@ public class DemoController {
     }
 
     @Path("qrcode/{wpa}")
-    public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final InteractBuilder ib, final BeanFinder finder) {
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
-
-        return finder.find(wpa, WechatAPI.class)
-                .flatMap(api-> rpcs.compose(api.createVolatileQrcode(2592000, "ABC")))
+    public Observable<Object> qrcode(@PathParam("wpa") final String wpa, final RpcExecutor executor, final BeanFinder finder) {
+        return executor.execute(finder.find(wpa, WechatAPI.class).map(api-> api.createVolatileQrcode(2592000, "ABC")))
                 .map(location->ResponseUtil.redirectOnly(location));
     }
 
     @Path("metaof/{obj}")
-    public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final InteractBuilder ib,
+    public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final RpcExecutor executor,
             final BeanFinder finder) {
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(ib).runner();
-
-        return rpcs.compose(_repo.getSimplifiedObjectMeta(objname))
+        return executor.execute(_repo.getSimplifiedObjectMeta(objname))
             .map(meta -> {
                 LOG.info("meta:{}", meta);
                 if (null != meta.getLastModified()) {
