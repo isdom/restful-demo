@@ -92,6 +92,7 @@ public class DemoController {
             @QueryParam("name") final String name,
             @QueryParam("filename") final String filename,
             @QueryParam("tntInstId") final String tntInstId,
+            @QueryParam("scene") final String scene,
             final Observable<MessageBody> bodys,
             final RpcExecutor executor,
             final BeanFinder finder) {
@@ -143,7 +144,7 @@ public class DemoController {
                     .map(repo -> repo.getObject(putresult.objectName()))))
             .doOnNext(body -> LOG.info("get from oss: {} / {}", body.contentType(), body.contentLength()))
             .flatMap(body -> executor.execute(finder.find(CCSChatAPI.class)
-                    .map(ccs -> ccs.uploadFile(tntInstId, System.currentTimeMillis(), "image", filename,
+                    .map(ccs -> ccs.uploadFile(tntInstId, scene, System.currentTimeMillis(), "image", filename,
                             Observable.just(body), macRef.get()))))
             .doOnNext(ss -> LOG.info("upload to ccs: {} and bodySize is: {}", ss, bodySize.get()))
         ;
