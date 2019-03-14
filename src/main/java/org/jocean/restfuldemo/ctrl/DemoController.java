@@ -145,7 +145,7 @@ public class DemoController {
             .flatMap(body -> executor.execute(finder.find(CCSChatAPI.class)
                     .map(ccs -> ccs.uploadFile(tntInstId, System.currentTimeMillis(), "image", filename,
                             Observable.just(body), macRef.get()))))
-            .doOnNext(ss -> LOG.info("upload to ccs: {} and bodySize is{}", ss, bodySize.get()))
+            .doOnNext(ss -> LOG.info("upload to ccs: {} and bodySize is: {}", ss, bodySize.get()))
         ;
     }
 
