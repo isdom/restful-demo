@@ -91,7 +91,7 @@ public class DemoController {
     public Observable<String> wx_ccs(
             @QueryParam("name") final String name,
             @QueryParam("filename") final String filename,
-            @QueryParam("tnt") final String tntInstId,
+            @QueryParam("tntInstId") final String tntInstId,
             final Observable<MessageBody> bodys,
             final RpcExecutor executor,
             final BeanFinder finder) {
