@@ -88,7 +88,7 @@ public class DemoController {
 
     @Path("wx-ccs")
     @POST
-    public Observable<String> wx_ccs(
+    public Observable<? extends Object> wx_ccs(
             @QueryParam("name") final String name,
             @QueryParam("filename") final String filename,
             @QueryParam("tntInstId") final String tntInstId,
@@ -146,7 +146,7 @@ public class DemoController {
             .flatMap(body -> executor.execute(finder.find(CCSChatAPI.class)
                     .map(ccs -> ccs.uploadFile(tntInstId, scene, System.currentTimeMillis(), "image", filename,
                             Observable.just(body), macRef.get()))))
-            .doOnNext(ss -> LOG.info("upload to ccs: {} and bodySize is: {}", ss, bodySize.get()))
+            .doOnNext(resp -> LOG.info("upload to ccs: {} and bodySize is: {}", resp, bodySize.get()))
         ;
     }
 
