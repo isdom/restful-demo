@@ -1,6 +1,5 @@
 package org.jocean.restfuldemo.ctrl;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -21,6 +20,7 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.aliyun.BlobRepo;
 import org.jocean.aliyun.ccs.CCSChatAPI;
+import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
@@ -33,9 +33,7 @@ import org.jocean.http.RpcRunner;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.idiom.ExceptionUtils;
 import org.jocean.lbsyun.LbsyunUtil;
-import org.jocean.netty.util.BufsInputStream;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
@@ -60,8 +58,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
-import com.google.common.io.ByteStreams;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -75,7 +71,7 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import rx.Observable;
 import rx.Observable.Transformer;
-import rx.functions.Actions;
+import rx.functions.Func1;
 
 @Path("/newrest/")
 @Controller
@@ -85,6 +81,46 @@ public class DemoController {
 
     @Value("${wx.appid}")
     String _appid;
+
+    @Path("wx-ccs-lite")
+    @POST
+    public Observable<? extends Object> wx_ccs_lite(
+            @QueryParam("name") final String name,
+            @QueryParam("filename") final String filename,
+            @QueryParam("tntInstId") final String tntInstId,
+            @QueryParam("scene") final String scene,
+            final Observable<MessageBody> bodys,
+            final RpcExecutor executor,
+            final BeanFinder finder) {
+
+        final AtomicReference<Mac> macRef = new AtomicReference<>();
+        final AtomicReference<String> mediaIdRef = new AtomicReference<>();
+
+        return executor.execute( uploadMediaToWX(finder, this._appid, name, filename, bodys) )
+            .doOnNext(resp -> LOG.info("upload temp media: {}", resp.getMediaId()))
+            .doOnNext(resp -> mediaIdRef.set(resp.getMediaId()))
+            .flatMap(resp -> executor.execute( getMediaFromWX(finder, this._appid, mediaIdRef.get()) ))
+            .doOnNext(body -> LOG.info("get temp media for digest: {} / {}", body.contentType(), body.contentLength()))
+            .flatMap(body -> finder.find(CCSChatAPI.class).doOnNext(ccs -> macRef.set( ccs.digestInstance())).map(ccs -> body))
+            .flatMap(digestBody(macRef.get()))
+            .flatMap(last -> executor.execute( getMediaFromWX(finder, this._appid, mediaIdRef.get()) ))
+            .doOnNext(body -> LOG.info("get temp media and upload to ccs: {} / {}", body.contentType(), body.contentLength()))
+            .flatMap(body -> executor.execute(finder.find(CCSChatAPI.class)
+                    .map(ccs -> ccs.uploadFile(tntInstId, scene, System.currentTimeMillis(), "image", filename,
+                            Observable.just(body), macRef.get()))))
+            .doOnNext(resp -> LOG.info("upload to ccs: {}", resp))
+        ;
+    }
+
+    private Func1<MessageBody, Observable<? extends ByteBufSlice>> digestBody(final Mac digest) {
+        return body -> body.content().doOnNext(bbs -> CCSChatUtil.updateDigest(digest, bbs.element()))
+                .doOnNext(bbs -> {
+                    for (final DisposableWrapper<? extends ByteBuf> dwb : bbs.element()) {
+                        dwb.dispose();
+                    }
+                    bbs.step();
+                }).last();
+    }
 
     @Path("wx-ccs")
     @POST
@@ -110,7 +146,7 @@ public class DemoController {
                 final Observable<ByteBufSlice> content4digest = body.content().map(bbs -> {
                     final Iterable<DisposableWrapper<? extends ByteBuf>> slice = slice(bbs.element());
 
-                    bodySize.addAndGet(updateDigest(macRef.get(), bbs.element()).length);
+                    bodySize.addAndGet(CCSChatUtil.updateDigest(macRef.get(), bbs.element()).length);
 
                     return (ByteBufSlice)new ByteBufSlice() {
                         @Override
@@ -148,22 +184,6 @@ public class DemoController {
                             Observable.just(body), macRef.get()))))
             .doOnNext(resp -> LOG.info("upload to ccs: {} and bodySize is: {}", resp, bodySize.get()))
         ;
-    }
-
-    private byte[] updateDigest(final Mac digest, final Iterable<? extends DisposableWrapper<? extends ByteBuf>> dwbs) {
-        final BufsInputStream<DisposableWrapper<? extends ByteBuf>> is = new BufsInputStream<>(
-                dwb->dwb.unwrap(), Actions.empty());
-        is.appendIterable(dwbs);
-        is.markEOS();
-
-        try {
-            final byte[] bytes = ByteStreams.toByteArray(is);
-            digest.update(bytes);
-            return bytes;
-        } catch (final IOException e) {
-            LOG.warn("exception when calc digest, detail: {}", ExceptionUtils.exception2detail(e));
-            return new byte[0];
-        }
     }
 
     private static Iterable<DisposableWrapper<? extends ByteBuf>> slice(
