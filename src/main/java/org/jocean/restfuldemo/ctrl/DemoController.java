@@ -71,7 +71,6 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import rx.Observable;
 import rx.Observable.Transformer;
-import rx.functions.Func1;
 
 @Path("/newrest/")
 @Controller
@@ -101,8 +100,8 @@ public class DemoController {
             .doOnNext(resp -> mediaIdRef.set(resp.getMediaId()))
             .flatMap(resp -> executor.execute( getMediaFromWX(finder, this._appid, mediaIdRef.get()) ))
             .doOnNext(body -> LOG.info("get temp media for digest: {} / {}", body.contentType(), body.contentLength()))
-            .flatMap(body -> finder.find(CCSChatAPI.class).doOnNext(ccs -> macRef.set( ccs.digestInstance())).map(ccs -> body))
-            .flatMap(digestBody(macRef.get()))
+            .flatMap(body -> finder.find(CCSChatAPI.class).doOnNext(ccs -> macRef.set(ccs.digestInstance())).map(ccs -> body))
+            .flatMap(body -> digestBody(body, macRef.get()))
             .flatMap(last -> executor.execute( getMediaFromWX(finder, this._appid, mediaIdRef.get()) ))
             .doOnNext(body -> LOG.info("get temp media and upload to ccs: {} / {}", body.contentType(), body.contentLength()))
             .flatMap(body -> executor.execute(finder.find(CCSChatAPI.class)
@@ -112,8 +111,8 @@ public class DemoController {
         ;
     }
 
-    private Func1<MessageBody, Observable<? extends ByteBufSlice>> digestBody(final Mac digest) {
-        return body -> body.content().doOnNext(bbs -> CCSChatUtil.updateDigest(digest, bbs.element()))
+    private Observable<? extends ByteBufSlice> digestBody(final MessageBody body, final Mac digest) {
+        return body.content().doOnNext(bbs -> CCSChatUtil.updateDigest(digest, bbs.element()))
                 .doOnNext(bbs -> {
                     for (final DisposableWrapper<? extends ByteBuf> dwb : bbs.element()) {
                         dwb.dispose();
