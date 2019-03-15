@@ -108,6 +108,8 @@ public class DemoController {
                     .map(ccs -> ccs.uploadFile(tntInstId, scene, System.currentTimeMillis(), "image", filename,
                             Observable.just(body), macRef.get()))))
             .doOnNext(resp -> LOG.info("upload to ccs: {}", resp))
+            .flatMap(resp -> executor.execute(finder.find(CCSChatAPI.class)
+                    .map(ccs -> ccs.fetchFile(tntInstId, scene, System.currentTimeMillis(), resp.getFileKey()))))
         ;
     }
 
