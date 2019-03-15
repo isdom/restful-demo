@@ -88,6 +88,7 @@ public class DemoController {
             @QueryParam("filename") final String filename,
             @QueryParam("tntInstId") final String tntInstId,
             @QueryParam("scene") final String scene,
+            @HeaderParam("content-type") final String contentType,
             final Observable<MessageBody> bodys,
             final RpcExecutor executor,
             final BeanFinder finder) {
@@ -110,6 +111,19 @@ public class DemoController {
             .doOnNext(resp -> LOG.info("upload to ccs: {}", resp))
             .flatMap(resp -> executor.execute(finder.find(CCSChatAPI.class)
                     .map(ccs -> ccs.fetchFile(tntInstId, scene, System.currentTimeMillis(), resp.getFileKey()))))
+            .map(body -> new MessageBody() {
+                @Override
+                public String contentType() {
+                    return null != contentType ? contentType : body.contentType();
+                }
+                @Override
+                public int contentLength() {
+                    return body.contentLength();
+                }
+                @Override
+                public Observable<? extends ByteBufSlice> content() {
+                    return body.content();
+                }})
         ;
     }
 
