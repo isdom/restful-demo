@@ -557,10 +557,14 @@ public class DemoController {
                 .flatMap(body -> body.content())
                 .compose(ByteBufSliceUtil.asLineSlice())
                 .doOnNext(slice -> {
-                    for (final String line : slice.element() ) {
-                        LOG.debug("Line: {}", line);
+                    try {
+                        for (final String line : slice.element() ) {
+                            LOG.debug("Line: {}", line);
+                        }
                     }
-                    slice.step();
+                    finally {
+                        slice.step();
+                    }
                 }).last().map(slice -> "OK");
     }
 
