@@ -30,6 +30,7 @@ import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
 import org.jocean.http.RpcExecutor;
 import org.jocean.http.RpcRunner;
+import org.jocean.http.server.HttpServerBuilder.HttpTrade;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
@@ -37,6 +38,7 @@ import org.jocean.lbsyun.LbsyunUtil;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
+import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.FinderUtil;
 import org.jocean.svr.ResponseBean;
 import org.jocean.svr.ResponseUtil;
@@ -546,6 +548,20 @@ public class DemoController {
                         + key + ")"));
             }
         }));
+    }
+
+    @Path("uploadlines")
+    @POST
+    public Observable<Object> uploadlines( final HttpRequest request, final HttpTrade trade) {
+        return trade.inbound().flatMap(fmsg -> fmsg.body())
+                .flatMap(body -> body.content())
+                .compose(ByteBufSliceUtil.asLineSlice())
+                .doOnNext(slice -> {
+                    for (final String line : slice.element() ) {
+                        LOG.debug("Line: {}", line);
+                    }
+                    slice.step();
+                }).last().map(slice -> "OK");
     }
 
     private Observable<Object> handle100Continue(final HttpRequest request) {
