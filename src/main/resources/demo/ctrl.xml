@@ -12,10 +12,10 @@
         base-package="org.jocean.restfuldemo.ctrl"
     />
     
-    <bean factory-bean="commandRepository" factory-method="addCommand">
+    <!-- bean factory-bean="commandRepository" factory-method="addCommand">
         <constructor-arg>
             <bean class="org.jocean.restfuldemo.ctrl.Help2"/>
         </constructor-arg>
-    </bean>
+    </bean -->
 
 </beans>

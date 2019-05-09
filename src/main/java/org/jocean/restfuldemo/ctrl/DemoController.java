@@ -47,6 +47,7 @@ import org.jocean.svr.UntilRequestCompleted;
 import org.jocean.svr.WithBody;
 import org.jocean.svr.WithRawBody;
 import org.jocean.svr.WithSlice;
+import org.jocean.svr.ZipUtil;
 import org.jocean.svr.ZipUtil.TozipEntity;
 import org.jocean.svr.ZipUtil.ZipBuilder;
 import org.jocean.wechat.AuthorizedMP;
@@ -566,6 +567,39 @@ public class DemoController {
                         slice.step();
                     }
                 }).last().map(slice -> "OK");
+    }
+
+    @Path("proxy_pwd")
+    public BinaryResponse proxy_passwd(
+            @QueryParam("uri") final String uri,
+            @QueryParam("pwd") final String pwd,
+            final TradeContext tctx,
+            final RpcExecutor executor) {
+
+        tctx.writeCtrl().sended().subscribe(msg -> DisposableWrapperUtil.dispose(msg));
+
+        return new BinaryResponse("1.zip") {
+            @Override
+            public String contentType() {
+                return HttpHeaderValues.APPLICATION_OCTET_STREAM.toString();
+            }
+
+            @Override
+            public Observable<? extends ByteBufSlice> slices() {
+                return executor.execute(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
+                    @Override
+                    public String entryName() {
+                        return "123.txt";
+                    }
+                    @Override
+                    public Observable<? extends ByteBufSlice> body() {
+                        return body.content().doOnNext( bbs -> {
+                            LOG.debug("=========== source slice: {}", bbs);
+                        });
+                    }})
+                .compose(ZipUtil.zipEntitiesWithPassword(tctx.allocatorBuilder().build(8192), tctx.endable(), 512, dwb -> dwb.dispose(), pwd));
+            }
+        };
     }
 
     private Observable<Object> handle100Continue(final HttpRequest request) {
