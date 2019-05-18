@@ -40,6 +40,7 @@ import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.FinderUtil;
+import org.jocean.svr.MultipartParser;
 import org.jocean.svr.ResponseBean;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.TradeContext;
@@ -63,8 +64,10 @@ import org.springframework.stereotype.Controller;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
@@ -72,6 +75,8 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
+import io.netty.util.internal.StringUtil;
 import rx.Observable;
 import rx.Observable.Transformer;
 
@@ -126,6 +131,10 @@ public class DemoController {
                 @Override
                 public Observable<? extends ByteBufSlice> content() {
                     return body.content();
+                }
+                @Override
+                public HttpHeaders headers() {
+                    return EmptyHttpHeaders.INSTANCE;
                 }})
         ;
     }
@@ -189,6 +198,11 @@ public class DemoController {
                     @Override
                     public Observable<? extends ByteBufSlice> content() {
                         return content4digest;
+                    }
+
+                    @Override
+                    public HttpHeaders headers() {
+                        return EmptyHttpHeaders.INSTANCE;
                     }};
             }))
             .flatMap(body -> executor.execute(finder.find(BlobRepo.class)
@@ -600,6 +614,129 @@ public class DemoController {
                 .compose(ZipUtil.zipEntitiesWithPassword(tctx.allocatorBuilder().build(8192), tctx.endable(), 512, dwb -> dwb.dispose(), pwd));
             }
         };
+    }
+
+    @Path("upload_ziplines")
+    @POST
+    public Observable<Object> upload_ziplines(final HttpTrade trade, final ZipBuilder zipBuilder, final TradeContext tctx) {
+        return trade.inbound().flatMap(fmsg -> fmsg.body())
+                .flatMap(body -> {
+                    final String contentType = body.headers().get(HttpHeaderNames.CONTENT_TYPE);
+                    final String multipartDataBoundary = getBoundary(contentType);
+                    return body.content().compose(new MultipartParser(tctx.allocatorBuilder().build(8192), multipartDataBoundary));
+                })
+                .flatMap(body -> {
+                    LOG.info("multipart headers: {}", body.headers());
+                    return body.content();
+                })
+                .compose(zipBuilder.unzip(8192, 512))
+                .flatMap(entity -> {
+                    LOG.info("unzip entity {}", entity.entry().getName());
+                    return entity.body();
+                })
+                .compose(ByteBufSliceUtil.asLineSlice())
+                .doOnNext(slice -> {
+                    try {
+                        for (final String line : slice.element() ) {
+                            LOG.info("Line: {}", line);
+                        }
+                    }
+                    finally {
+                        slice.step();
+                    }
+                }).last().map(slice -> "OK");
+    }
+
+    private String getBoundary(final String contentType) {
+        final String[] dataBoundary = getMultipartDataBoundary(contentType);
+
+        if (dataBoundary != null) {
+            return dataBoundary[0];
+//            if (dataBoundary.length > 1 && dataBoundary[1] != null) {
+//                charset = Charset.forName(dataBoundary[1]);
+//            }
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Check from the request ContentType if this request is a Multipart request.
+     * @return an array of String if multipartDataBoundary exists with the multipartDataBoundary
+     * as first element, charset if any as second (missing if not set), else null
+     */
+    protected static String[] getMultipartDataBoundary(final String contentType) {
+        // Check if Post using "multipart/form-data; boundary=--89421926422648 [; charset=xxx]"
+        final String[] headerContentType = splitHeaderContentType(contentType);
+        final String multiPartHeader = HttpHeaderValues.MULTIPART_FORM_DATA.toString();
+        if (headerContentType[0].regionMatches(true, 0, multiPartHeader, 0 , multiPartHeader.length())) {
+            int mrank;
+            int crank;
+            final String boundaryHeader = HttpHeaderValues.BOUNDARY.toString();
+            if (headerContentType[1].regionMatches(true, 0, boundaryHeader, 0, boundaryHeader.length())) {
+                mrank = 1;
+                crank = 2;
+            } else if (headerContentType[2].regionMatches(true, 0, boundaryHeader, 0, boundaryHeader.length())) {
+                mrank = 2;
+                crank = 1;
+            } else {
+                return null;
+            }
+            String boundary = StringUtil.substringAfter(headerContentType[mrank], '=');
+            if (boundary == null) {
+                throw new ErrorDataDecoderException("Needs a boundary value");
+            }
+            if (boundary.charAt(0) == '"') {
+                final String bound = boundary.trim();
+                final int index = bound.length() - 1;
+                if (bound.charAt(index) == '"') {
+                    boundary = bound.substring(1, index);
+                }
+            }
+            final String charsetHeader = HttpHeaderValues.CHARSET.toString();
+            if (headerContentType[crank].regionMatches(true, 0, charsetHeader, 0, charsetHeader.length())) {
+                final String charset = StringUtil.substringAfter(headerContentType[crank], '=');
+                if (charset != null) {
+                    return new String[] {"--" + boundary, charset};
+                }
+            }
+            return new String[] {"--" + boundary};
+        }
+        return null;
+    }
+
+    /**
+     * Split the very first line (Content-Type value) in 3 Strings
+     *
+     * @return the array of 3 Strings
+     */
+    private static String[] splitHeaderContentType(final String sb) {
+        int aStart;
+        int aEnd;
+        int bStart;
+        int bEnd;
+        int cStart;
+        int cEnd;
+        aStart = HttpPostBodyUtil.findNonWhitespace(sb, 0);
+        aEnd =  sb.indexOf(';');
+        if (aEnd == -1) {
+            return new String[] { sb, "", "" };
+        }
+        bStart = HttpPostBodyUtil.findNonWhitespace(sb, aEnd + 1);
+        if (sb.charAt(aEnd - 1) == ' ') {
+            aEnd--;
+        }
+        bEnd =  sb.indexOf(';', bStart);
+        if (bEnd == -1) {
+            bEnd = HttpPostBodyUtil.findEndOfString(sb);
+            return new String[] { sb.substring(aStart, aEnd), sb.substring(bStart, bEnd), "" };
+        }
+        cStart = HttpPostBodyUtil.findNonWhitespace(sb, bEnd + 1);
+        if (sb.charAt(bEnd - 1) == ' ') {
+            bEnd--;
+        }
+        cEnd = HttpPostBodyUtil.findEndOfString(sb);
+        return new String[] { sb.substring(aStart, aEnd), sb.substring(bStart, bEnd), sb.substring(cStart, cEnd) };
     }
 
     private Observable<Object> handle100Continue(final HttpRequest request) {
