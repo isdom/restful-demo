@@ -40,7 +40,7 @@ import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.FinderUtil;
-import org.jocean.svr.MultipartParser;
+import org.jocean.svr.MultipartTransformer;
 import org.jocean.svr.ResponseBean;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.TradeContext;
@@ -623,13 +623,14 @@ public class DemoController {
                 .flatMap(body -> {
                     final String contentType = body.headers().get(HttpHeaderNames.CONTENT_TYPE);
                     final String multipartDataBoundary = getBoundary(contentType);
-                    return body.content().compose(new MultipartParser(tctx.allocatorBuilder().build(8192), multipartDataBoundary));
+                    return body.content().compose(new MultipartTransformer(tctx.allocatorBuilder().build(8192), multipartDataBoundary));
                 })
                 .flatMap(body -> {
                     LOG.info("multipart headers: {}", body.headers());
                     return body.content();
                 })
-                .compose(zipBuilder.unzip(8192, 512))
+//                .compose(zipBuilder.unzip(8192, 512))
+                .compose(ZipUtil.unzipToEntitiesNew(tctx.allocatorBuilder().build(8192), trade, 8192, dwb -> dwb.dispose()))
                 .flatMap(entity -> {
                     LOG.info("unzip entity {}", entity.entry().getName());
                     return entity.body();
