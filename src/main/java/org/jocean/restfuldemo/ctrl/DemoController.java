@@ -463,7 +463,7 @@ public class DemoController {
 
         final AtomicInteger unzipedSize = new AtomicInteger(0);
 
-        tctx.endable().doOnEnd(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
+        tctx.haltable().doOnHalt(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
 
         final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(tctx.interactBuilder()).runner();
 
@@ -611,7 +611,7 @@ public class DemoController {
                             LOG.debug("=========== source slice: {}", bbs);
                         });
                     }})
-                .compose(ZipUtil.zipEntitiesWithPassword(tctx.allocatorBuilder().build(8192), tctx.endable(), 512, dwb -> dwb.dispose(), pwd));
+                .compose(ZipUtil.zipEntitiesWithPassword(tctx.allocatorBuilder().build(8192), tctx.haltable(), 512, dwb -> dwb.dispose(), pwd));
             }
         };
     }
