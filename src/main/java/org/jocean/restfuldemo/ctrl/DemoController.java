@@ -34,6 +34,8 @@ import org.jocean.http.server.HttpServerBuilder.HttpTrade;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
+import org.jocean.idiom.jmx.MBeanRegister;
+import org.jocean.idiom.jmx.MBeanRegisterAware;
 import org.jocean.lbsyun.LbsyunUtil;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
@@ -83,8 +85,35 @@ import rx.Observable.Transformer;
 @Path("/newrest/")
 @Controller
 @Scope("singleton")
-public class DemoController {
+public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
+
+    public interface TaskMBean {
+        public void start();
+        public void addMonitor(Monitor monitor);
+    }
+
+    public class Task implements TaskMBean {
+
+        @Override
+        public void start() {
+            _shared.subscribe(v -> {});
+        }
+
+        @Override
+        public void addMonitor(final Monitor monitor) {
+            _shared.subscribe(v -> monitor.append(System.currentTimeMillis()));
+        }
+
+        final Observable<Long> _shared = Observable.timer(1, TimeUnit.SECONDS).share();
+    }
+
+    @Override
+    public void setMBeanRegister(final MBeanRegister register) {
+//        final Observable<Long> shared = Observable.timer(1, TimeUnit.SECONDS).share();
+
+        register.registerMBean("name=task", new Task());
+    }
 
     @Value("${wx.appid}")
     String _appid;
