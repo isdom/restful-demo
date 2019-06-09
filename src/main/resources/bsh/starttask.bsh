@@ -1,0 +1,17 @@
+
+import java.lang.management.ManagementFactory;
+
+import javax.management.JMX;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import org.jocean.restfuldemo.ctrl.TaskMBean;
+import org.jocean.restfuldemo.ctrl.Monitor;
+
+final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
+
+final TaskMBean task = JMX.newMBeanProxy(mbeanServer,  ObjectName.getInstance("org.jocean:unit=root,restful-demo=units/ctrl,name=task"),  TaskMBean.class);
+
+task.addMonitor(new Monitor() {
+    void append(final Object obj) {
+        _clictx.logger().call(obj);
+    }});
