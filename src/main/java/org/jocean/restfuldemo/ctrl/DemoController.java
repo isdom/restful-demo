@@ -102,7 +102,7 @@ public class DemoController implements MBeanRegisterAware {
 
         @Override
         public void addMonitor(final Monitor monitor) {
-            _shared.subscribe(v -> monitor.append(System.currentTimeMillis()));
+            _shared.subscribe(v -> monitor.append(System.currentTimeMillis() + "\r\n"));
         }
 
         final Observable<Long> _shared = Observable.timer(1, TimeUnit.SECONDS).share();
