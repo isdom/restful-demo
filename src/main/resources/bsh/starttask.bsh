@@ -1,5 +1,6 @@
 
 import java.lang.management.ManagementFactory;
+import java.lang.Thread;
 
 import javax.management.JMX;
 import javax.management.MBeanServer;
@@ -9,9 +10,20 @@ import org.jocean.restfuldemo.ctrl.Monitor;
 
 final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
 
-final TaskMBean task = JMX.newMBeanProxy(mbeanServer,  ObjectName.getInstance("org.jocean:unit=root,restful-demo=units/ctrl,name=task"),  TaskMBean.class);
+final TaskMBean task = JMX.newMBeanProxy(mbeanServer,  
+    ObjectName.getInstance("org.jocean:unit=root,restful-demo=zkunit.booter,zkunit.booter=units/ctrl,name=task"),  
+    TaskMBean.class);
 
-task.addMonitor(new Monitor() {
-    void append(final Object obj) {
+final Monitor monitor = new Monitor() {
+    public void append(Object obj) {
         _clictx.logger().call(obj);
-    }});
+    }};
+    
+task.addMonitor(monitor);
+
+Thread.sleep(1000 * 100);
+
+return "END";
+
+========================================================================================================================================================================
+CmltcG9ydCBqYXZhLmxhbmcubWFuYWdlbWVudC5NYW5hZ2VtZW50RmFjdG9yeTsKaW1wb3J0IGphdmEubGFuZy5UaHJlYWQ7CgppbXBvcnQgamF2YXgubWFuYWdlbWVudC5KTVg7CmltcG9ydCBqYXZheC5tYW5hZ2VtZW50Lk1CZWFuU2VydmVyOwppbXBvcnQgamF2YXgubWFuYWdlbWVudC5PYmplY3ROYW1lOwppbXBvcnQgb3JnLmpvY2Vhbi5yZXN0ZnVsZGVtby5jdHJsLlRhc2tNQmVhbjsKaW1wb3J0IG9yZy5qb2NlYW4ucmVzdGZ1bGRlbW8uY3RybC5Nb25pdG9yOwoKZmluYWwgTUJlYW5TZXJ2ZXIgbWJlYW5TZXJ2ZXIgPSBNYW5hZ2VtZW50RmFjdG9yeS5nZXRQbGF0Zm9ybU1CZWFuU2VydmVyKCk7CgpmaW5hbCBUYXNrTUJlYW4gdGFzayA9IEpNWC5uZXdNQmVhblByb3h5KG1iZWFuU2VydmVyLCAgCiAgICBPYmplY3ROYW1lLmdldEluc3RhbmNlKCJvcmcuam9jZWFuOnVuaXQ9cm9vdCxyZXN0ZnVsLWRlbW89emt1bml0LmJvb3Rlcix6a3VuaXQuYm9vdGVyPXVuaXRzL2N0cmwsbmFtZT10YXNrIiksICAKICAgIFRhc2tNQmVhbi5jbGFzcyk7CgpmaW5hbCBNb25pdG9yIG1vbml0b3IgPSBuZXcgTW9uaXRvcigpIHsKICAgIHB1YmxpYyB2b2lkIGFwcGVuZChPYmplY3Qgb2JqKSB7CiAgICAgICAgX2NsaWN0eC5sb2dnZXIoKS5jYWxsKG9iaik7CiAgICB9fTsKICAgIAp0YXNrLmFkZE1vbml0b3IobW9uaXRvcik7CgpUaHJlYWQuc2xlZXAoMTAwMCAqIDEwMCk7CgpyZXR1cm4gIkVORCI7Cg==
