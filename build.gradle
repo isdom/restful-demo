@@ -15,8 +15,6 @@ configurations {
 }
 
 dependencies {
-    compile 'org.slf4j:slf4j-api:1.7.25'
-
     compile 'org.jocean:jocean-idiom:0.1.4-SNAPSHOT'
     compile 'org.jocean:jocean-http:0.0.2-SNAPSHOT'
     compile 'org.jocean:jocean-j2se:0.0.4-SNAPSHOT'
@@ -37,9 +35,11 @@ dependencies {
     compile 'com.netflix.hystrix:hystrix-metrics-event-stream:1.5.12'
     compile 'com.netflix.hystrix:hystrix-metrics-event-stream-jaxrs:1.5.12'
     
-    compile "org.slf4j:jcl-over-slf4j:1.7.25"
-    compile "org.slf4j:log4j-over-slf4j:1.7.25"
+    compile "org.slf4j:jcl-over-slf4j:1.7.26"
+    compile "org.slf4j:log4j-over-slf4j:1.7.26"
     compile "ch.qos.logback:logback-classic:1.2.3"
+    
+    compile 'commons-httpclient:commons-httpclient:3.1'
 
     testCompile "junit:junit:4.12"
 }
