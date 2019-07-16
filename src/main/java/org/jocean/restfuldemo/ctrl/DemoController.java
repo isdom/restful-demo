@@ -158,7 +158,7 @@ public class DemoController implements MBeanRegisterAware {
         }
 
         private final int _type = 0;
-        public String _url;
+        private String _url;
     }
     /*
      * 计算MD5+BASE64
@@ -204,7 +204,7 @@ public class DemoController implements MBeanRegisterAware {
         return df.format(date);
     }
 
-    public Transformer<RpcRunner, ImageTagResponse> imagetag (final String url) {
+    public Transformer<RpcRunner, ImageTagResponse> imagetag (final String url, final String ak_id, final String ak_secret) {
         return runners -> runners.flatMap(runner -> runner.name("aliyun.imagetag").execute(interact -> {
             try {
                 final ImageTagRequest req = new ImageTagRequest();
@@ -276,7 +276,7 @@ public class DemoController implements MBeanRegisterAware {
     @Path("imgtag")
     @GET
     public Observable<ImageTagResponse> imgtag(@QueryParam("url") final String imgurl, final RpcExecutor executor) {
-        return executor.execute( imagetag(imgurl) );
+        return executor.execute( imagetag(imgurl, _ak_id, _ak_secret) );
     }
 
     public interface TaskMBean {
@@ -966,11 +966,11 @@ public class DemoController implements MBeanRegisterAware {
             : Observable.empty();
     }
 
-    @Value("ak_secret")
-    private String ak_secret;
+    @Value("${ak_secret}")
+    private String _ak_secret;
 
-    @Value("ak_id")
-    private String ak_id;
+    @Value("${ak_id}")
+    private String _ak_id;
 
     @Inject
     private BlobRepoOverOSS _repo;
