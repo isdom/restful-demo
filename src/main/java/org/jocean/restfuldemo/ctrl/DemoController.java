@@ -1,22 +1,29 @@
 package org.jocean.restfuldemo.ctrl;
 
+import java.security.MessageDigest;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.inject.Inject;
+import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.OPTIONS;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 
 import org.jocean.aliyun.BlobRepo;
 import org.jocean.aliyun.ccs.CCSChatAPI;
@@ -24,6 +31,7 @@ import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
+import org.jocean.http.ContentUtil;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
@@ -64,6 +72,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.annotation.JSONField;
+import com.google.common.base.Charsets;
+import com.google.common.io.BaseEncoding;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
@@ -87,6 +100,184 @@ import rx.Observable.Transformer;
 @Scope("singleton")
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
+
+    static interface ImageTag {
+        @JSONField(name="confidence")
+        public int getConfidence();
+
+        @JSONField(name="confidence")
+        public void setConfidence(final int confidence);
+
+        @JSONField(name="value")
+        public String getValue();
+
+        @JSONField(name="value")
+        public void setValue(final String value);
+    }
+
+    static interface ImageTagResponse {
+        @JSONField(name="errno")
+        public int getErrno();
+
+        @JSONField(name="errno")
+        public void setErrno(final int errno);
+
+        @JSONField(name="err_msg")
+        public String getErrmsg();
+
+        @JSONField(name="err_msg")
+        public void setErrmsg(final String errmsg);
+
+        @JSONField(name="request_id")
+        public String getRequestId();
+
+        @JSONField(name="request_id")
+        public void setRequestId(final String requestId);
+
+        @JSONField(name="tags")
+        public ImageTag[] getTags();
+
+        @JSONField(name="tags")
+        public void setTags(final ImageTag[] tags);
+    }
+
+    static class ImageTagRequest {
+        @JSONField(name="type")
+        public int getType() {
+            return _type;
+        }
+
+        @JSONField(name="image_url")
+        public String getUrl() {
+            return _url;
+        }
+
+        @JSONField(name="image_url")
+        public void setUrl(final String url) {
+            this._url = url;
+        }
+
+        private final int _type = 0;
+        public String _url;
+    }
+    /*
+     * 计算MD5+BASE64
+     */
+    public static String MD5Base64(final String s) {
+        if (s == null)
+            return null;
+        String encodeStr = "";
+        final byte[] utfBytes = s.getBytes();
+        MessageDigest mdTemp;
+        try {
+            mdTemp = MessageDigest.getInstance("MD5");
+            mdTemp.update(utfBytes);
+            encodeStr = BaseEncoding.base64().encode(mdTemp.digest());
+        } catch (final Exception e) {
+            throw new Error("Failed to generate MD5 : " + e.getMessage());
+        }
+        return encodeStr;
+    }
+
+    /*
+     * 计算 HMAC-SHA1
+     */
+    public static String HMACSha1(final String data, final String key) {
+        String result;
+        try {
+            final SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
+            final Mac mac = Mac.getInstance("HmacSHA1");
+            mac.init(signingKey);
+            result = BaseEncoding.base64().encode(mac.doFinal(data.getBytes()));
+        } catch (final Exception e) {
+            throw new Error("Failed to generate HMAC : " + e.getMessage());
+        }
+        return result;
+    }
+
+    /*
+     * 等同于javaScript中的 new Date().toUTCString();
+     */
+    public static String toGMTString(final Date date) {
+        final SimpleDateFormat df = new SimpleDateFormat("E, dd MMM yyyy HH:mm:ss z", Locale.UK);
+        df.setTimeZone(new java.util.SimpleTimeZone(0, "GMT"));
+        return df.format(date);
+    }
+
+    public Transformer<RpcRunner, ImageTagResponse> imagetag (final String url) {
+        return runners -> runners.flatMap(runner -> runner.name("aliyun.imagetag").execute(interact -> {
+            try {
+                final ImageTagRequest req = new ImageTagRequest();
+
+                req.setUrl(url);
+
+                final String body = JSON.toJSONString(req);
+                final byte[] bodyBytes = body.getBytes(Charsets.UTF_8);
+                final ByteBufSlice bbs = ByteBufSliceUtil.wrappedSlice(bodyBytes);
+
+                final MessageBody msgbody = new MessageBody() {
+
+                    @Override
+                    public HttpHeaders headers() {
+                        return EmptyHttpHeaders.INSTANCE;
+                    }
+
+                    @Override
+                    public String contentType() {
+                        return MediaType.APPLICATION_JSON;
+                    }
+
+                    @Override
+                    public int contentLength() {
+                        return bodyBytes.length;
+                    }
+
+                    @Override
+                    public Observable<? extends ByteBufSlice> content() {
+                        return Observable.just(bbs);
+                    }};
+
+                /*
+                 * http header 参数
+                 */
+                final String method = "POST";
+                final String accept = MediaType.APPLICATION_JSON;
+                final String content_type = MediaType.APPLICATION_JSON;
+                final String path = "/image/tag";
+                final String date = toGMTString(new Date());
+                // 1.对body做MD5+BASE64加密
+                final String bodyMd5 = MD5Base64(body);
+                final String stringToSign = method + "\n" + accept + "\n" + bodyMd5 + "\n" + content_type + "\n" + date + "\n"
+                        + path;
+                // 2.计算 HMAC-SHA1
+                final String signature = HMACSha1(stringToSign, ak_secret);
+                // 3.得到 authorization header
+                final String authHeader = "Dataplus " + ak_id + ":" + signature;
+
+                return interact.method(HttpMethod.POST)
+                        .uri("https://dtplus-cn-shanghai.data.aliyuncs.com")
+                        .path(path)
+                        .body(Observable.just(msgbody))
+                        .onrequest(obj -> {
+                            if (obj instanceof HttpRequest) {
+                                final HttpRequest httpreq = (HttpRequest)obj;
+                                httpreq.headers().set(HttpHeaderNames.ACCEPT, accept);
+                                httpreq.headers().set(HttpHeaderNames.DATE, date);
+                                httpreq.headers().set(HttpHeaderNames.AUTHORIZATION, authHeader);
+                            }
+                        })
+                        .responseAs(ContentUtil.ASJSON, ImageTagResponse.class);
+            } catch (final Exception e) {
+                return Observable.error(e);
+            }
+        }));
+    }
+
+    @Path("imgtag")
+    @GET
+    public Observable<ImageTagResponse> imgtag(@QueryParam("url") final String imgurl, final RpcExecutor executor) {
+        return executor.execute( imagetag(imgurl) );
+    }
 
     public interface TaskMBean {
         public void start();
@@ -774,6 +965,12 @@ public class DemoController implements MBeanRegisterAware {
             ? Observable.<Object>just(ResponseUtil.response().setStatus(100), DoFlush.Util.flushOnly())
             : Observable.empty();
     }
+
+    @Value("ak_secret")
+    private String ak_secret;
+
+    @Value("ak_id")
+    private String ak_id;
 
     @Inject
     private BlobRepoOverOSS _repo;
