@@ -90,8 +90,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.ErrorDataDecoderException;
-import io.netty.util.internal.StringUtil;
 import rx.Observable;
 import rx.Observable.Transformer;
 
@@ -842,7 +840,7 @@ public class DemoController implements MBeanRegisterAware {
         return trade.inbound().flatMap(fmsg -> fmsg.body())
                 .flatMap(body -> {
                     final String contentType = body.headers().get(HttpHeaderNames.CONTENT_TYPE);
-                    final String multipartDataBoundary = getBoundary(contentType);
+                    final String multipartDataBoundary = MultipartTransformer.getBoundary(contentType);
                     return body.content().compose(new MultipartTransformer(tctx.allocatorBuilder().build(8192), multipartDataBoundary));
                 })
                 .flatMap(body -> {
@@ -866,98 +864,6 @@ public class DemoController implements MBeanRegisterAware {
                         slice.step();
                     }
                 }).last().map(slice -> "OK");
-    }
-
-    private String getBoundary(final String contentType) {
-        final String[] dataBoundary = getMultipartDataBoundary(contentType);
-
-        if (dataBoundary != null) {
-            return dataBoundary[0];
-//            if (dataBoundary.length > 1 && dataBoundary[1] != null) {
-//                charset = Charset.forName(dataBoundary[1]);
-//            }
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Check from the request ContentType if this request is a Multipart request.
-     * @return an array of String if multipartDataBoundary exists with the multipartDataBoundary
-     * as first element, charset if any as second (missing if not set), else null
-     */
-    protected static String[] getMultipartDataBoundary(final String contentType) {
-        // Check if Post using "multipart/form-data; boundary=--89421926422648 [; charset=xxx]"
-        final String[] headerContentType = splitHeaderContentType(contentType);
-        final String multiPartHeader = HttpHeaderValues.MULTIPART_FORM_DATA.toString();
-        if (headerContentType[0].regionMatches(true, 0, multiPartHeader, 0 , multiPartHeader.length())) {
-            int mrank;
-            int crank;
-            final String boundaryHeader = HttpHeaderValues.BOUNDARY.toString();
-            if (headerContentType[1].regionMatches(true, 0, boundaryHeader, 0, boundaryHeader.length())) {
-                mrank = 1;
-                crank = 2;
-            } else if (headerContentType[2].regionMatches(true, 0, boundaryHeader, 0, boundaryHeader.length())) {
-                mrank = 2;
-                crank = 1;
-            } else {
-                return null;
-            }
-            String boundary = StringUtil.substringAfter(headerContentType[mrank], '=');
-            if (boundary == null) {
-                throw new ErrorDataDecoderException("Needs a boundary value");
-            }
-            if (boundary.charAt(0) == '"') {
-                final String bound = boundary.trim();
-                final int index = bound.length() - 1;
-                if (bound.charAt(index) == '"') {
-                    boundary = bound.substring(1, index);
-                }
-            }
-            final String charsetHeader = HttpHeaderValues.CHARSET.toString();
-            if (headerContentType[crank].regionMatches(true, 0, charsetHeader, 0, charsetHeader.length())) {
-                final String charset = StringUtil.substringAfter(headerContentType[crank], '=');
-                if (charset != null) {
-                    return new String[] {"--" + boundary, charset};
-                }
-            }
-            return new String[] {"--" + boundary};
-        }
-        return null;
-    }
-
-    /**
-     * Split the very first line (Content-Type value) in 3 Strings
-     *
-     * @return the array of 3 Strings
-     */
-    private static String[] splitHeaderContentType(final String sb) {
-        int aStart;
-        int aEnd;
-        int bStart;
-        int bEnd;
-        int cStart;
-        int cEnd;
-        aStart = HttpPostBodyUtil.findNonWhitespace(sb, 0);
-        aEnd =  sb.indexOf(';');
-        if (aEnd == -1) {
-            return new String[] { sb, "", "" };
-        }
-        bStart = HttpPostBodyUtil.findNonWhitespace(sb, aEnd + 1);
-        if (sb.charAt(aEnd - 1) == ' ') {
-            aEnd--;
-        }
-        bEnd =  sb.indexOf(';', bStart);
-        if (bEnd == -1) {
-            bEnd = HttpPostBodyUtil.findEndOfString(sb);
-            return new String[] { sb.substring(aStart, aEnd), sb.substring(bStart, bEnd), "" };
-        }
-        cStart = HttpPostBodyUtil.findNonWhitespace(sb, bEnd + 1);
-        if (sb.charAt(bEnd - 1) == ' ') {
-            bEnd--;
-        }
-        cEnd = HttpPostBodyUtil.findEndOfString(sb);
-        return new String[] { sb.substring(aStart, aEnd), sb.substring(bStart, bEnd), sb.substring(cStart, cEnd) };
     }
 
     private Observable<Object> handle100Continue(final HttpRequest request) {
