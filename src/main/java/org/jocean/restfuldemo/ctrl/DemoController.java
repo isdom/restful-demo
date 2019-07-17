@@ -532,7 +532,7 @@ public class DemoController implements MBeanRegisterAware {
         return new WithRawBody() {
             @Override
             public Observable<? extends MessageBody> body() {
-                return executor.execute(_repo.getObject(key));
+                return executor.execute(_finder.find(BlobRepo.class).map(repo -> repo.getObject(key)));
             }};
     }
 
@@ -578,7 +578,7 @@ public class DemoController implements MBeanRegisterAware {
     @Path("metaof/{obj}")
     public Observable<String> getSimplifiedObjectMeta(@PathParam("obj") final String objname, final RpcExecutor executor,
             final BeanFinder finder) {
-        return executor.execute(_repo.getSimplifiedObjectMeta(objname))
+        return executor.execute(_finder.find(BlobRepo.class).map( repo -> repo.getSimplifiedObjectMeta(objname)))
             .map(meta -> {
                 LOG.info("meta:{}", meta);
                 if (null != meta.getLastModified()) {
@@ -879,7 +879,7 @@ public class DemoController implements MBeanRegisterAware {
     private String _ak_id;
 
     @Inject
-    private BlobRepoOverOSS _repo;
+    private BeanFinder _finder;
 
     @Inject
     RpcExecutor _executor;
