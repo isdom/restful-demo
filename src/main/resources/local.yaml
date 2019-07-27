@@ -1,10 +1,8 @@
 name: units
 parameters: |
-  __spring.xml=unit/apistats.xml, svr/rpc_executor.xml
+  __spring.xml=unit/apistats.xml
 children:
-  - name: lbsyunapi.smt
-    parameters: |
-      api.baiduak=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  - name: rpc_executor
   - name: interact_features.logging
     parameters: |
       name=logging
@@ -19,28 +17,13 @@ children:
     parameters: |
       name=timeout.default
       timeout.ms = 15000
-  - name: oss.staging
-    parameters: |
-      access.keyid=XXXXXX
-      access.keysecret=XXXXXXXXXXXXXXXXXX
-      oss.endpoint=http://oss-cn-hangzhou.aliyuncs.com
-    children:
-      - name: ossrepo
-        parameters: |
-          bucket.name =XXXXXX
-  #- name: redisclient
-  #  parameters: |
-  #    redis.server.hostname=localhost
-  #    redis.server.port=6379
-  #    redis.server.passwd=passwd
-  #    redis.server.dbno=255
   - name: rpcs_top.global
     parameters: |
       before = logging
       after = retry.default, timeout.default
-  - name: rpcs_top.org.jocean.restfuldemo.bll.DemoController
+  - name: rpcs_top.org.jocean.restfuldemo.ctrl.DemoController
     parameters: |
-      name=org.jocean.restfuldemo.bll.DemoController
+      name=org.jocean.restfuldemo.ctrl.DemoController
       before = 
       after = 
     children:
@@ -65,19 +48,22 @@ children:
   - name: cors
   - name: logrest
   - name: 100continue
-  - name: bll
-  - name: httpclient.default
+  - name: ctrl
+  - name: prometheus_jmx_exporter
     parameters: |
-      http.client.thread.count = 2
-      http.client.inbound.blocksize = 16384
-      http.client.inbound.recvbuf = 16384
-      http.client.outbound.sendbuf = 16384
-      http.client.outbound.lowmark = 4096
-      http.client.outbound.highmark = 16384
+      ## yaml
+      
+      config: |
+        lowercaseOutputName: true
+        lowercaseOutputLabelNames: true
+        attrNameSnakeCase: true
+        whitelistObjectNames: ["java.*:*"]
+        rules:
+        - pattern: ".*"
+  - name: export_prometheus.default
+  - name: httpclient.default
   - name: httpserver
     parameters: |
-      # disable assembly
-      # http.server.inbound.blocksize = 102400
       # set recv buffer size 8k
       http.server.inbound.recvbuf = 8192
       
@@ -95,9 +81,19 @@ children:
           - name: set_interceptor.demo
             parameters: |
               # Resource Class
-              resource.class=org.jocean.restfuldemo.bll.DemoController
+              resource.class=org.jocean.restfuldemo.ctrl.DemoController
               # interceptors (full class name) to attach
               resource.interceptors=\
               org.jocean.svr.interceptor.StatRest,\
               org.jocean.svr.interceptor.LogRest,\
               org.jocean.svr.interceptor.EnableCORS
+      - name: restin.8080
+        parameters: |
+          http.port = 8080
+          http.address=0.0.0.0
+          restin.pathpattern=^/metrics
+          restin.category = not_exist
+        children:
+          - name: feature_logging
+          - name: feature_compress
+              
