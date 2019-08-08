@@ -29,6 +29,8 @@ import org.jocean.aliyun.BlobRepo;
 import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.MetadataAPI;
+import org.jocean.aliyun.nls.NlsAPI;
+import org.jocean.aliyun.nls.NlsAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.ContentUtil;
@@ -98,6 +100,12 @@ import rx.Observable.Transformer;
 @Scope("singleton")
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
+
+    @Path("nlstoken")
+    @GET
+    public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
+        return executor.execute(_finder.find(NlsAPI.class).map(api -> api.createToken()));
+    }
 
     static interface ImageTag {
         @JSONField(name="confidence")
