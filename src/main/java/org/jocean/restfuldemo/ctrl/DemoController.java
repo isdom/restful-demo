@@ -103,6 +103,7 @@ public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
     @Path("nlsasr")
+    @OPTIONS
     @POST
     public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
