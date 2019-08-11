@@ -105,8 +105,11 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/describeInstances")
     public Observable<? extends Object> ecsDescribeInstances(final RpcExecutor executor,
-            @QueryParam("region") final String regionId) {
-        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.describeInstances(regionId) ));
+            @QueryParam("region") final String regionId,
+            @QueryParam("vpc") final String vpcId,
+            @QueryParam("instancename") final String instanceName
+            ) {
+        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.describeInstances(regionId, vpcId, instanceName) ));
     }
 
     @Path("nlsasr")
