@@ -28,6 +28,7 @@ import javax.ws.rs.core.MediaType;
 import org.jocean.aliyun.BlobRepo;
 import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
+import org.jocean.aliyun.ecs.EcsAPI;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
@@ -102,13 +103,21 @@ import rx.Observable.Transformer;
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
+    @Path("ecs/describeInstances")
+    @OPTIONS
+    @POST
+    public Observable<? extends Object> ecsDescribeInstances(final RpcExecutor executor,
+            @QueryParam("region") final String regionId) {
+        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.describeInstances(regionId) ));
+    }
+
     @Path("nlsasr")
     @OPTIONS
     @POST
     public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
         return getbody.flatMap(body ->
-            executor.execute(_finder.find(NlsAPI.class).map(api -> api.streamAsrV1(body) )));
+            executor.execute(_finder.find(NlsAPI.class).map(api -> api.streamAsrV1(body, null, -1) )));
     }
 
     @Path("nlstoken")
