@@ -104,8 +104,6 @@ public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
     @Path("ecs/describeInstances")
-    @OPTIONS
-    @POST
     public Observable<? extends Object> ecsDescribeInstances(final RpcExecutor executor,
             @QueryParam("region") final String regionId) {
         return executor.execute(_finder.find(EcsAPI.class).map(api -> api.describeInstances(regionId) ));
