@@ -25,6 +25,7 @@ dependencies {
     compile('org.jocean:jocean-wechat:0.0.1-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-redis:0.0.1-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-lbsyun:0.0.1-SNAPSHOT') { transitive = false }
+    compile('org.jocean:jocean-bce:0.0.1-SNAPSHOT') { transitive = false }
     
     /* for aliyun-sdk-oss */
     compile 'com.aliyun.oss:aliyun-sdk-oss:3.3.0'

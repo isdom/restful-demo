@@ -34,6 +34,7 @@ import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
+import org.jocean.bce.oauth.OAuthAPI;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.ContentUtil;
 import org.jocean.http.DoFlush;
@@ -102,6 +103,11 @@ import rx.Observable.Transformer;
 @Scope("singleton")
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
+
+    @Path("bce/accesstoken")
+    public Observable<? extends Object> bceAccessToken(final RpcExecutor executor) {
+        return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
+    }
 
     @Path("ecs/describeInstances")
     public Observable<? extends Object> ecsDescribeInstances(final RpcExecutor executor,
