@@ -110,7 +110,9 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("instanceType") final String instanceType
             ) {
         return executor.execute(_finder.find(EcsAPI.class).map(api -> api.describeSpotPriceHistory()
-                .instanceType(instanceType).build(regionId) ));
+                .instanceType(instanceType)
+                .networkType("vpc")
+                .build(regionId) ));
     }
 
     @Path("bce/accesstoken")
