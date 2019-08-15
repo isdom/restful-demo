@@ -104,15 +104,28 @@ import rx.Observable.Transformer;
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
+//    @Path("ecs/createInstance")
+//    public Observable<? extends Object> createInstance(final RpcExecutor executor,
+//            @QueryParam("region") final String regionId,
+//            @QueryParam("instanceType") final String instanceType
+//            ) {
+//        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.createInstance()
+//                .instanceType(instanceType)
+//                .networkType("vpc")
+//                .build(regionId) ));
+//    }
+
     @Path("ecs/describeSpotPriceHistory")
     public Observable<? extends Object> describeSpotPriceHistory(final RpcExecutor executor,
             @QueryParam("region") final String regionId,
             @QueryParam("instanceType") final String instanceType
             ) {
-        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.describeSpotPriceHistory()
-                .instanceType(instanceType)
-                .networkType("vpc")
-                .build(regionId) ));
+        return executor.execute(_finder.find(EcsAPI.class).map(
+                api -> api.describeSpotPriceHistory()
+                            .regionId(regionId)
+                            .instanceType(instanceType)
+                            .networkType("vpc")
+                            .call()));
     }
 
     @Path("bce/accesstoken")
