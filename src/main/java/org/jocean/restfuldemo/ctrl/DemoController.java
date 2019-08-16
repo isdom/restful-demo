@@ -125,7 +125,7 @@ public class DemoController implements MBeanRegisterAware {
                 .regionId(regionId)
                 .securityGroupId(securityGroupId)
                 .internetMaxBandwidthOut(0)
-                .internetChargeType("payByTraffic")
+//                .internetChargeType("PayByTraffic")
                 .instanceName(instanceName)
                 .hostName(hostName)
                 .systemDiskSize(20)
