@@ -119,7 +119,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("keyPairName") final String keyPairName,
             @QueryParam("ramRoleName") final String ramRoleName) {
         return executor.execute(_finder.find(EcsAPI.class).map(api -> api.createInstance()
-//                .dryRun(true)
+                .dryRun(true)
                 .imageId(imageId)
                 .instanceType(instanceType)
                 .regionId(regionId)
