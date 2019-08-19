@@ -104,6 +104,15 @@ import rx.Observable.Transformer;
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
+    @Path("ecs/startInstance")
+    public Observable<? extends Object> startInstance(
+            final RpcExecutor executor,
+            @QueryParam("instance") final String instanceId) {
+        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.startInstance()
+                .instanceId(instanceId)
+                .call() ));
+    }
+
     @Path("ecs/createInstance")
     public Observable<? extends Object> createInstance(
             final RpcExecutor executor,
