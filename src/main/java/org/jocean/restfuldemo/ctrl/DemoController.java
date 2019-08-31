@@ -34,6 +34,7 @@ import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
+import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.bce.oauth.OAuthAPI;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.ContentUtil;
@@ -200,7 +201,13 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("vpc") final String vpcId,
             @QueryParam("instancename") final String instanceName
             ) {
-        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.describeInstances(regionId, vpcId, instanceName) ));
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> api.describeInstances()
+                    .regionId(regionId)
+                    .vpcId(vpcId)
+                    .instanceName(instanceName)
+                    .call())));
     }
 
     @Path("nlsasr")
@@ -996,6 +1003,9 @@ public class DemoController implements MBeanRegisterAware {
 
     @Value("${ak_id}")
     private String _ak_id;
+
+    @Value("${signer.name}")
+    private String _signer;
 
     @Inject
     private BeanFinder _finder;
