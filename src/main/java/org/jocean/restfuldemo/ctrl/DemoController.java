@@ -111,10 +111,12 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/stopInstance with instanceId:{}/force:{}", instanceId, force);
-        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.stopInstance()
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> api.stopInstance()
                 .instanceId(instanceId)
                 .forceStop(force)
-                .call() ));
+                .call() )));
     }
 
     @Path("ecs/deleteInstance")
@@ -123,19 +125,23 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/deleteInstance with instanceId:{}/force:{}", instanceId, force);
-        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.deleteInstance()
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> api.deleteInstance()
                 .instanceId(instanceId)
                 .force(force)
-                .call() ));
+                .call() )));
     }
 
     @Path("ecs/startInstance")
     public Observable<? extends Object> startInstance(
             final RpcExecutor executor,
             @QueryParam("instance") final String instanceId) {
-        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.startInstance()
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> api.startInstance()
                 .instanceId(instanceId)
-                .call() ));
+                .call() )));
     }
 
     @Path("ecs/createInstance")
@@ -152,7 +158,9 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("spotPriceLimit") final float spotPriceLimit,
             @QueryParam("keyPairName") final String keyPairName,
             @QueryParam("ramRoleName") final String ramRoleName) {
-        return executor.execute(_finder.find(EcsAPI.class).map(api -> api.createInstance()
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> api.createInstance()
                 .dryRun(true)
                 .imageId(imageId)
                 .instanceType(instanceType)
@@ -174,7 +182,7 @@ public class DemoController implements MBeanRegisterAware {
                 .keyPairName(keyPairName)
                 .ramRoleName(ramRoleName)
                 .securityEnhancementStrategy("Active")
-                .call() ));
+                .call() )));
     }
 
     @Path("ecs/describeSpotPriceHistory")
@@ -182,17 +190,13 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("region") final String regionId,
             @QueryParam("instanceType") final String instanceType
             ) {
-        return executor.execute(_finder.find(EcsAPI.class).map(
-                api -> api.describeSpotPriceHistory()
-                            .regionId(regionId)
-                            .instanceType(instanceType)
-                            .networkType("vpc")
-                            .call()));
-    }
-
-    @Path("bce/accesstoken")
-    public Observable<? extends Object> bceAccessToken(final RpcExecutor executor) {
-        return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> api.describeSpotPriceHistory()
+                    .regionId(regionId)
+                    .instanceType(instanceType)
+                    .networkType("vpc")
+                    .call())));
     }
 
     @Path("ecs/describeInstances")
@@ -208,6 +212,11 @@ public class DemoController implements MBeanRegisterAware {
                     .vpcId(vpcId)
                     .instanceName(instanceName)
                     .call())));
+    }
+
+    @Path("bce/accesstoken")
+    public Observable<? extends Object> bceAccessToken(final RpcExecutor executor) {
+        return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
     }
 
     @Path("nlsasr")
