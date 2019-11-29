@@ -48,9 +48,11 @@ import org.jocean.http.server.HttpServerBuilder.HttpTrade;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.jmx.MBeanRegister;
 import org.jocean.idiom.jmx.MBeanRegisterAware;
 import org.jocean.lbsyun.LbsyunUtil;
+import org.jocean.netty.util.BufsInputStream;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
@@ -82,6 +84,12 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.google.common.base.Charsets;
 import com.google.common.io.BaseEncoding;
+import com.iflytek.cloud.speech.RecognizerListener;
+import com.iflytek.cloud.speech.RecognizerResult;
+import com.iflytek.cloud.speech.SpeechConstant;
+import com.iflytek.cloud.speech.SpeechError;
+import com.iflytek.cloud.speech.SpeechRecognizer;
+import com.iflytek.cloud.speech.SpeechUtility;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
@@ -98,12 +106,129 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import rx.Observable;
 import rx.Observable.Transformer;
+import rx.functions.Action1;
 
 @Path("/newrest/")
 @Controller
 @Scope("singleton")
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
+
+    @Value("${xfyun_appid}")
+    String _xfyun_appid;
+    boolean _speechInited = false;
+    boolean _IsEndOfSpeech = false;
+    StringBuffer _recognizeResult = new StringBuffer();
+
+    public static <T> Transformer<MessageBody, BufsInputStream<DisposableWrapper<? extends ByteBuf>>> body2InputStream() {
+        final BufsInputStream<DisposableWrapper<? extends ByteBuf>> is =
+                new BufsInputStream<>(dwb -> dwb.unwrap(), dwb -> dwb.dispose());
+        return bodys -> bodys.flatMap(body -> body.content().doOnNext(addBufsAndStep(is)).last().map(last -> {
+            is.markEOS();
+            return is;
+        }));
+    }
+
+    private static Action1<ByteBufSlice> addBufsAndStep(final BufsInputStream<DisposableWrapper<? extends ByteBuf>> is) {
+        return bbs -> {
+            try {
+                is.appendIterable(bbs.element());
+            } finally {
+                bbs.step();
+            }
+        };
+    }
+
+     /**
+     * 听写监听器
+     */
+    private final RecognizerListener recListener = new RecognizerListener() {
+
+        @Override
+        public void onBeginOfSpeech() {
+            LOG.info( "onBeginOfSpeech enter: *************开始录音*************");
+        }
+
+        @Override
+        public void onEndOfSpeech() {
+            LOG.info( "onEndOfSpeech enter" );
+            _IsEndOfSpeech = true;
+        }
+
+        @Override
+        public void onVolumeChanged(final int volume) {
+            LOG.info( "onVolumeChanged enter" );
+            if (volume > 0)
+                LOG.info("*************音量值:" + volume + "*************");
+
+        }
+
+        @Override
+        public void onResult(final RecognizerResult result, final boolean islast) {
+            LOG.info( "onResult enter" );
+            _recognizeResult.append(result.getResultString());
+
+            if( islast ){
+                LOG.info("识别结果为:" + _recognizeResult.toString());
+                _IsEndOfSpeech = true;
+                _recognizeResult.delete(0, _recognizeResult.length());
+            }
+        }
+
+        @Override
+        public void onError(final SpeechError error) {
+            _IsEndOfSpeech = true;
+            LOG.warn("*************" + error.getErrorCode()
+                    + "*************");
+        }
+
+        @Override
+        public void onEvent(final int eventType, final int arg1, final int agr2, final String msg) {
+            LOG.info( "onEvent enter" );
+        }
+    };
+
+    @Path("pcm2text")
+    @POST
+    public Observable<Object> pcm2text(final RpcExecutor executor, final Observable<MessageBody> getbody) {
+        if (!_speechInited) {
+            _speechInited = true;
+            SpeechUtility.createUtility("appid=" + _xfyun_appid);
+        }
+
+        if (SpeechRecognizer.getRecognizer() == null)
+            SpeechRecognizer.createRecognizer();
+
+
+        return getbody.compose(body2InputStream()).map(is -> {
+
+            _IsEndOfSpeech = false;
+
+            final SpeechRecognizer recognizer = SpeechRecognizer.getRecognizer();
+            recognizer.setParameter(SpeechConstant.AUDIO_SOURCE, "-1");
+            //写音频流时，文件是应用层已有的，不必再保存
+//          recognizer.setParameter(SpeechConstant.ASR_AUDIO_PATH, "./iat_test.pcm");
+            recognizer.setParameter( SpeechConstant.RESULT_TYPE, "plain" );
+            recognizer.startListening(recListener);
+
+            final byte[] buffer = new byte[64*1024];
+            try {
+                int lenRead = buffer.length;
+                while( buffer.length==lenRead && !_IsEndOfSpeech){
+                    lenRead = is.read( buffer );
+                    recognizer.writeAudio(buffer, 0, lenRead );
+                }//end of while
+
+                recognizer.stopListening();
+
+            } catch (final Exception e) {
+                LOG.warn("exception when pcm2text, detail: {}", ExceptionUtils.exception2detail(e));
+            } finally {
+            }
+
+            return "OK.";
+        });
+    }
 
     @Path("ecs/stopInstance")
     public Observable<? extends Object> stopInstance(
