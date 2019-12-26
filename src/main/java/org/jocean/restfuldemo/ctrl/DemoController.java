@@ -356,7 +356,7 @@ public class DemoController implements MBeanRegisterAware {
     @Path("nlstoken")
     @GET
     public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
-        return executor.execute(_finder.find(NlsAPI.class).map(api -> api.createToken()));
+        return executor.execute(_finder.find(NlsAPI.class).map(api -> api.createToken().call()));
     }
 
     static interface ImageTag {
