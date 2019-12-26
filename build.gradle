@@ -41,6 +41,8 @@ dependencies {
     compile "ch.qos.logback:logback-classic:1.2.3"
     
     compile 'commons-httpclient:commons-httpclient:3.1'
+    
+    compile 'com.hynnet:jxl:2.6.12.1'
 
     testCompile "junit:junit:4.12"
 }
