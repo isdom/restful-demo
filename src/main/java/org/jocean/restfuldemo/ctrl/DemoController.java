@@ -48,7 +48,6 @@ import org.jocean.http.server.HttpServerBuilder.HttpTrade;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.idiom.ExceptionUtils;
 import org.jocean.idiom.jmx.MBeanRegister;
 import org.jocean.idiom.jmx.MBeanRegisterAware;
 import org.jocean.lbsyun.LbsyunUtil;
@@ -83,12 +82,6 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.google.common.base.Charsets;
 import com.google.common.io.BaseEncoding;
-import com.iflytek.cloud.speech.RecognizerListener;
-import com.iflytek.cloud.speech.RecognizerResult;
-import com.iflytek.cloud.speech.SpeechConstant;
-import com.iflytek.cloud.speech.SpeechError;
-import com.iflytek.cloud.speech.SpeechRecognizer;
-import com.iflytek.cloud.speech.SpeechUtility;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
@@ -138,9 +131,8 @@ public class DemoController implements MBeanRegisterAware {
         };
     }
 
-     /**
-     * 听写监听器
-     */
+    /*
+    // 听写监听器
     private final RecognizerListener recListener = new RecognizerListener() {
 
         @Override
@@ -228,6 +220,7 @@ public class DemoController implements MBeanRegisterAware {
             return "OK.";
         });
     }
+    */
 
     @Path("wx/qrcode")
     public Observable<? extends ResponseBean> wxQrcode(
