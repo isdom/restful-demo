@@ -73,7 +73,6 @@ import org.jocean.wechat.AuthorizedMP;
 import org.jocean.wechat.WXCommonAPI;
 import org.jocean.wechat.WXCommonAPI.UploadTempMediaResponse;
 import org.jocean.wechat.WechatAPI;
-//import org.jocean.wechat.WechatAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -228,6 +227,18 @@ public class DemoController implements MBeanRegisterAware {
 
             return "OK.";
         });
+    }
+
+    @Path("wx/qrcode")
+    public Observable<? extends ResponseBean> wxQrcode(
+            final RpcExecutor executor,
+            @QueryParam("appid") final String appid,
+            @QueryParam("expire") final int expire,
+            @QueryParam("scene") final String scene) {
+        LOG.info("call ecs/wx.createVolatileQrcode  with appid:{}/expire:{}/scene:{}", appid, expire, scene);
+        return executor.execute( Observable.zip( _finder.find(appid, AuthorizedMP.class), _finder.find(WXCommonAPI.class),
+                (mp, wcapi)-> wcapi.createVolatileQrcode(mp.getAccessToken(), expire, scene)))
+                .map(uri -> ResponseUtil.redirectOnly(uri));
     }
 
     @Path("ecs/stopInstance")
