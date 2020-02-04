@@ -343,6 +343,17 @@ public class DemoController implements MBeanRegisterAware {
                     .call())));
     }
 
+    @Path("ecs/describeInstanceStatus")
+    public Observable<? extends Object> ecsDescribeInstanceStatus(
+            final RpcExecutor executor,
+            @QueryParam("region") final String regionId) {
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> api.describeInstanceStatus()
+                    .regionId(regionId)
+                    .call())));
+    }
+
     @Path("bce/accesstoken")
     public Observable<? extends Object> bceAccessToken(final RpcExecutor executor) {
         return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
