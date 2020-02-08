@@ -29,6 +29,7 @@ import org.jocean.aliyun.BlobRepo;
 import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.EcsAPI;
+import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
@@ -346,12 +347,19 @@ public class DemoController implements MBeanRegisterAware {
     @Path("ecs/describeInstanceStatus")
     public Observable<? extends Object> ecsDescribeInstanceStatus(
             final RpcExecutor executor,
-            @QueryParam("region") final String regionId) {
+            @QueryParam("region") final String regionId,
+            @QueryParam("pageidx") final String pageidx,
+            @QueryParam("pagesize") final String pagesize) {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.describeInstanceStatus()
-                    .regionId(regionId)
-                    .call())));
+                _finder.find(EcsAPI.class).map(api -> {
+                    final DescribeInstanceStatusBuilder builder = api.describeInstanceStatus().regionId(regionId);
+                    if (null != pageidx && null != pagesize) {
+                        builder.pageNumber( Integer.parseInt(pageidx));
+                        builder.pageSize(Integer.parseInt(pagesize));
+                    }
+                    return builder.call();
+                })));
     }
 
     @Path("ecs/describeUserData")
