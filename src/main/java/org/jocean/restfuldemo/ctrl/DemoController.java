@@ -29,6 +29,7 @@ import org.jocean.aliyun.BlobRepo;
 import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.EcsAPI;
+import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.nls.NlsAPI;
@@ -349,7 +350,8 @@ public class DemoController implements MBeanRegisterAware {
             final RpcExecutor executor,
             @QueryParam("region") final String regionId,
             @QueryParam("pageidx") final String pageidx,
-            @QueryParam("pagesize") final String pagesize) {
+            @QueryParam("pagesize") final String pagesize
+            ) {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
                 _finder.find(EcsAPI.class).map(api -> {
@@ -374,6 +376,41 @@ public class DemoController implements MBeanRegisterAware {
                     .regionId(regionId)
                     .call())));
     }
+
+    @Path("ecs/describeInstanceRamRole")
+    public Observable<? extends Object> ecsDescribeInstanceRamRole(
+            final RpcExecutor executor,
+            @QueryParam("region") final String regionId,
+            @QueryParam("instances") final String instances,
+            @QueryParam("ramrole") final String ramrole,
+            @QueryParam("pageidx") final String pageidx,
+            @QueryParam("pagesize") final String pagesize
+            ) {
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                _finder.find(EcsAPI.class).map(api -> {
+                    final DescribeInstanceRamRoleBuilder builder = api.describeInstanceRamRole().regionId(regionId);
+
+                    if (null != instances) {
+                        builder.instanceIds(instances);
+                    }
+
+                    if (null != ramrole) {
+                        builder.ramRoleName(ramrole);
+                    }
+
+                    if (null != pageidx) {
+                        builder.pageNumber(Integer.parseInt(pageidx));
+                    }
+
+                    if (null != pagesize) {
+                        builder.pageSize(Integer.parseInt(pagesize));
+                    }
+
+                    return builder.call();
+                })));
+    }
+
 
     @Path("bce/accesstoken")
     public Observable<? extends Object> bceAccessToken(final RpcExecutor executor) {
