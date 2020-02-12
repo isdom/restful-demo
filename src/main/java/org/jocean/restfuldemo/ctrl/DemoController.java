@@ -57,6 +57,7 @@ import org.jocean.netty.util.BufsInputStream;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
+import org.jocean.rpc.RpcDelegater;
 import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.FinderUtil;
 import org.jocean.svr.MultipartTransformer;
@@ -338,11 +339,13 @@ public class DemoController implements MBeanRegisterAware {
             ) {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.describeInstances()
+                RpcDelegater.build(EcsAPI.class).describeInstances()
+//                _finder.find(EcsAPI.class).map(api -> api.describeInstances()
                     .regionId(regionId)
                     .vpcId(vpcId)
                     .instanceName(instanceName)
-                    .call())));
+                    .call()));
+//                );
     }
 
     @Path("ecs/describeInstanceStatus")
