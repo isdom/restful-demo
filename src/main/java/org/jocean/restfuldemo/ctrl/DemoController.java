@@ -32,9 +32,8 @@ import org.jocean.aliyun.ecs.EcsAPI;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
-import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
-import org.jocean.aliyun.nls.NlsAPI.CreateTokenResponse;
+import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.bce.oauth.OAuthAPI;
@@ -245,10 +244,10 @@ public class DemoController implements MBeanRegisterAware {
         LOG.info("call ecs/stopInstance with instanceId:{}/force:{}", instanceId, force);
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.stopInstance()
-                .instanceId(instanceId)
-                .forceStop(force)
-                .call() )));
+                RpcDelegater.build(EcsAPI.class).stopInstance()
+                    .instanceId(instanceId)
+                    .forceStop(force)
+                    .call() ));
     }
 
     @Path("ecs/deleteInstance")
@@ -259,10 +258,10 @@ public class DemoController implements MBeanRegisterAware {
         LOG.info("call ecs/deleteInstance with instanceId:{}/force:{}", instanceId, force);
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.deleteInstance()
+                RpcDelegater.build(EcsAPI.class).deleteInstance()
                 .instanceId(instanceId)
                 .force(force)
-                .call() )));
+                .call() ));
     }
 
     @Path("ecs/startInstance")
@@ -271,9 +270,9 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("instance") final String instanceId) {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.startInstance()
+                RpcDelegater.build(EcsAPI.class).startInstance()
                 .instanceId(instanceId)
-                .call() )));
+                .call() ));
     }
 
     @Path("ecs/createInstance")
@@ -292,7 +291,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("ramRoleName") final String ramRoleName) {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.createInstance()
+                RpcDelegater.build(EcsAPI.class).createInstance()
                 .dryRun(true)
                 .imageId(imageId)
                 .instanceType(instanceType)
@@ -314,7 +313,7 @@ public class DemoController implements MBeanRegisterAware {
                 .keyPairName(keyPairName)
                 .ramRoleName(ramRoleName)
                 .securityEnhancementStrategy("Active")
-                .call() )));
+                .call() ));
     }
 
     @Path("ecs/describeSpotPriceHistory")
@@ -324,11 +323,11 @@ public class DemoController implements MBeanRegisterAware {
             ) {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.describeSpotPriceHistory()
+                RpcDelegater.build(EcsAPI.class).describeSpotPriceHistory()
                     .regionId(regionId)
                     .instanceType(instanceType)
                     .networkType("vpc")
-                    .call())));
+                    .call()));
     }
 
     @Path("ecs/describeInstances")
@@ -340,12 +339,10 @@ public class DemoController implements MBeanRegisterAware {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
                 RpcDelegater.build(EcsAPI.class).describeInstances()
-//                _finder.find(EcsAPI.class).map(api -> api.describeInstances()
                     .regionId(regionId)
                     .vpcId(vpcId)
                     .instanceName(instanceName)
                     .call()));
-//                );
     }
 
     @Path("ecs/describeInstanceStatus")
@@ -355,16 +352,15 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("pageidx") final String pageidx,
             @QueryParam("pagesize") final String pagesize
             ) {
+
+        final DescribeInstanceStatusBuilder builder = RpcDelegater.build(EcsAPI.class).describeInstanceStatus().regionId(regionId);
+        if (null != pageidx && null != pagesize) {
+            builder.pageNumber( Integer.parseInt(pageidx));
+            builder.pageSize(Integer.parseInt(pagesize));
+        }
+
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> {
-                    final DescribeInstanceStatusBuilder builder = api.describeInstanceStatus().regionId(regionId);
-                    if (null != pageidx && null != pagesize) {
-                        builder.pageNumber( Integer.parseInt(pageidx));
-                        builder.pageSize(Integer.parseInt(pagesize));
-                    }
-                    return builder.call();
-                })));
+                runners -> runners.doOnNext(signer),builder.call()));
     }
 
     @Path("ecs/describeUserData")
@@ -374,10 +370,10 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("region") final String regionId) {
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
                 runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> api.describeUserData()
+                RpcDelegater.build(EcsAPI.class).describeUserData()
                     .instanceId(instance)
                     .regionId(regionId)
-                    .call())));
+                    .call()));
     }
 
     @Path("ecs/describeInstanceRamRole")
@@ -389,29 +385,26 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("pageidx") final String pageidx,
             @QueryParam("pagesize") final String pagesize
             ) {
+        final DescribeInstanceRamRoleBuilder builder = RpcDelegater.build(EcsAPI.class).describeInstanceRamRole().regionId(regionId);
+
+        if (null != instances) {
+            builder.instanceIds(instances);
+        }
+
+        if (null != ramrole) {
+            builder.ramRoleName(ramrole);
+        }
+
+        if (null != pageidx) {
+            builder.pageNumber(Integer.parseInt(pageidx));
+        }
+
+        if (null != pagesize) {
+            builder.pageSize(Integer.parseInt(pagesize));
+        }
+
         return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                _finder.find(EcsAPI.class).map(api -> {
-                    final DescribeInstanceRamRoleBuilder builder = api.describeInstanceRamRole().regionId(regionId);
-
-                    if (null != instances) {
-                        builder.instanceIds(instances);
-                    }
-
-                    if (null != ramrole) {
-                        builder.ramRoleName(ramrole);
-                    }
-
-                    if (null != pageidx) {
-                        builder.pageNumber(Integer.parseInt(pageidx));
-                    }
-
-                    if (null != pagesize) {
-                        builder.pageSize(Integer.parseInt(pagesize));
-                    }
-
-                    return builder.call();
-                })));
+                runners -> runners.doOnNext(signer), builder.call()));
     }
 
 
@@ -425,14 +418,20 @@ public class DemoController implements MBeanRegisterAware {
     @POST
     public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
+        // TODO
+        return null;
+        /*
         return getbody.flatMap(body ->
             executor.execute(_finder.find(NlsAPI.class).map(api -> api.streamAsrV1(body, null, -1) )));
+            */
     }
 
     @Path("nlstoken")
     @GET
     public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
-        return executor.execute(_finder.find(NlsAPI.class).map(api -> api.createToken().call()));
+        // TODO
+        return null;
+//        return executor.execute(_finder.find(NlsAPI.class).map(api -> api.createToken().call()));
     }
 
     static interface ImageTag {
