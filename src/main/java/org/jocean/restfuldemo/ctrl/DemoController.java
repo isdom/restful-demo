@@ -32,6 +32,7 @@ import org.jocean.aliyun.ecs.EcsAPI;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
+import org.jocean.aliyun.ivision.IvisionAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
@@ -223,6 +224,19 @@ public class DemoController implements MBeanRegisterAware {
         });
     }
     */
+
+    @Path("ivision/imagePredict")
+    public Observable<? extends Object> ivisionImagePredict(final RpcExecutor executor,
+            @QueryParam("dataurl") final String dataUrl,
+            @QueryParam("modelid") final String modelId
+            ) {
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                RpcDelegater.build(IvisionAPI.class).imagePredict()
+                    .modelId(modelId)
+                    .dataUrl(dataUrl)
+                    .call()));
+    }
 
     @Path("wx/qrcode")
     public Observable<? extends ResponseBean> wxQrcode(
