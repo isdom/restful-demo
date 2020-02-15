@@ -235,7 +235,14 @@ public class DemoController implements MBeanRegisterAware {
                 RpcDelegater.build(IvisionAPI.class).imagePredict()
                     .modelId(modelId)
                     .dataUrl(dataUrl)
-                    .call()));
+                    .call()))
+                .map(resp -> {
+                    if (resp.getImagePredict().getStatus().equals("Success")) {
+                        return JSON.parseObject(resp.getImagePredict().getPredictResult(), IvisionAPI.PredictionResults.class);
+                    } else {
+                        return resp;
+                    }
+                });
     }
 
     @Path("wx/qrcode")
