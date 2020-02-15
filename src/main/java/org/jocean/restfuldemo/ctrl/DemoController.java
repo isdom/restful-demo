@@ -238,7 +238,7 @@ public class DemoController implements MBeanRegisterAware {
                     .call()))
                 .map(resp -> {
                     if (resp.getImagePredict().getStatus().equals("Success")) {
-                        return JSON.parseObject(resp.getImagePredict().getPredictResult(), IvisionAPI.PredictionResults.class);
+                        return JSON.parseObject(resp.getImagePredict().getPredictResult(), IvisionAPI.PredictResults.class);
                     } else {
                         return resp;
                     }
