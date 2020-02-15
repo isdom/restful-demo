@@ -33,6 +33,7 @@ import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
+import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
@@ -440,12 +441,11 @@ public class DemoController implements MBeanRegisterAware {
     @POST
     public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
-        // TODO
-        return null;
-        /*
-        return getbody.flatMap(body ->
-            executor.execute(_finder.find(NlsAPI.class).map(api -> api.streamAsrV1(body, null, -1) )));
-            */
+        return _finder.find(_signer, AliyunSigner.class)
+                .flatMap(signer -> executor.execute(runners -> runners.doOnNext(signer),
+                        RpcDelegater.build(NlsmetaAPI.class).createToken().call()))
+                .flatMap(resp -> getbody.flatMap(body -> executor.execute(_finder.find(NlsAPI.class)
+                        .map(api -> api.streamAsrV1(resp.getNlsToken().getId(), body, null, -1)))));
     }
 
     @Path("nls/token")
