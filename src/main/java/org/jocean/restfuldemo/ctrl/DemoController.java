@@ -34,6 +34,7 @@ import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
+import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.sign.AliyunSigner;
@@ -434,7 +435,7 @@ public class DemoController implements MBeanRegisterAware {
         return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
     }
 
-    @Path("nlsasr")
+    @Path("nls/asr")
     @OPTIONS
     @POST
     public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
@@ -447,12 +448,12 @@ public class DemoController implements MBeanRegisterAware {
             */
     }
 
-    @Path("nlstoken")
+    @Path("nls/token")
     @GET
     public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
-        // TODO
-        return null;
-//        return executor.execute(_finder.find(NlsAPI.class).map(api -> api.createToken().call()));
+        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
+                runners -> runners.doOnNext(signer),
+                RpcDelegater.build(NlsmetaAPI.class).createToken().call()));
     }
 
     static interface ImageTag {
