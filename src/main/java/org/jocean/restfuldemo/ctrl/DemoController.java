@@ -248,7 +248,10 @@ public class DemoController implements MBeanRegisterAware {
     }
 
     Transformer<Interact, Interact> alisign() {
-        return interacts -> _finder.find(AliyunSigner2.class).flatMap(signer -> interacts.doOnNext(signer));
+        return interacts -> _finder.find(AliyunSigner2.class).flatMap(signer -> {
+            LOG.info("alisign: sign by {}", signer);
+            return interacts.doOnNext(signer);
+        });
     }
 
     @Path("wx/qrcode")
