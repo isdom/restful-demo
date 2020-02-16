@@ -39,11 +39,13 @@ import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.sign.AliyunSigner;
+import org.jocean.aliyun.sign.AliyunSigner2;
 import org.jocean.bce.oauth.OAuthAPI;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.ContentUtil;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
+import org.jocean.http.Interact;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
 import org.jocean.http.RpcExecutor;
@@ -232,19 +234,21 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("dataurl") final String dataUrl,
             @QueryParam("modelid") final String modelId
             ) {
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(IvisionAPI.class).imagePredict()
-                    .modelId(modelId)
-                    .dataUrl(dataUrl)
-                    .call()))
+        return executor
+                .submit(interacts -> interacts.compose(alisign()).flatMap(
+                        RpcDelegater.build2(IvisionAPI.class).imagePredict().modelId(modelId).dataUrl(dataUrl).call()))
                 .map(resp -> {
                     if (resp.getImagePredict().getStatus().equals("Success")) {
-                        return JSON.parseObject(resp.getImagePredict().getPredictResult(), IvisionAPI.PredictResults.class);
+                        return JSON.parseObject(resp.getImagePredict().getPredictResult(),
+                                IvisionAPI.PredictResults.class);
                     } else {
                         return resp;
                     }
                 });
+    }
+
+    Transformer<Interact, Interact> alisign() {
+        return interacts -> _finder.find(AliyunSigner2.class).flatMap(signer -> interacts.doOnNext(signer));
     }
 
     @Path("wx/qrcode")
