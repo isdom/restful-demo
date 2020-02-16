@@ -234,8 +234,8 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("dataurl") final String dataUrl,
             @QueryParam("modelid") final String modelId
             ) {
-        return executor
-                .submit(interacts -> interacts.compose(alisign()).flatMap(
+        return executor.submit(
+                interacts -> interacts.compose(alisign()).compose(
                         RpcDelegater.build2(IvisionAPI.class).imagePredict().modelId(modelId).dataUrl(dataUrl).call()))
                 .map(resp -> {
                     if (resp.getImagePredict().getStatus().equals("Success")) {
