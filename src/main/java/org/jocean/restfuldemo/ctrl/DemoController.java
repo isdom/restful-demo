@@ -448,19 +448,16 @@ public class DemoController implements MBeanRegisterAware {
     @POST
     public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
-        return _finder.find(_signer, AliyunSigner.class)
-                .flatMap(signer -> executor.execute(runners -> runners.doOnNext(signer),
-                        RpcDelegater.build(NlsmetaAPI.class).createToken().call()))
-                .flatMap(resp -> getbody.flatMap(body -> executor.execute(_finder.find(NlsAPI.class)
-                        .map(api -> api.streamAsrV1(resp.getNlsToken().getId(), body, null, -1)))));
+        return nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(token -> getbody.flatMap(body -> executor.execute(_finder.find(NlsAPI.class)
+                        .map(api -> api.streamAsrV1(token, body, null, -1)))));
     }
 
     @Path("nls/token")
     @GET
     public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(NlsmetaAPI.class).createToken().call()));
+        return executor.submit(
+                interacts -> interacts.compose(alisign()).compose(
+                        RpcDelegater.build(NlsmetaAPI.class).createToken().call()));
     }
 
     static interface ImageTag {
