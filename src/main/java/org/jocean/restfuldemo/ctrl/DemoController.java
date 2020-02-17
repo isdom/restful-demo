@@ -33,10 +33,10 @@ import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
-import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
+import org.jocean.aliyun.nls.internal.DefaultNlsAPI;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.AliyunSigner2;
@@ -247,6 +247,10 @@ public class DemoController implements MBeanRegisterAware {
                 });
     }
 
+    Transformer<Interact, Interact> appkey() {
+        return interacts -> interacts.doOnNext( interact -> interact.paramAsQuery("appkey", _nlsAppkey));
+    }
+
     Transformer<Interact, Interact> alisign() {
         return interacts -> _finder.find(AliyunSigner2.class).flatMap(signer -> {
             LOG.info("alisign: sign by {}", signer);
@@ -448,8 +452,11 @@ public class DemoController implements MBeanRegisterAware {
     @POST
     public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
-        return nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(token -> getbody.flatMap(body -> executor.execute(_finder.find(NlsAPI.class)
-                        .map(api -> api.streamAsrV1(token, body, null, -1)))));
+        return nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(token -> getbody.flatMap(body -> executor.submit(
+                interacts -> interacts.compose(appkey()).compose(new DefaultNlsAPI().streamAsrV1(token, body, null, -1))
+                )));
+//        return nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(token -> getbody.flatMap(body -> executor.execute(_finder.find(NlsAPI.class)
+//                .map(api -> api.streamAsrV1(token, body, null, -1)))));
     }
 
     @Path("nls/token")
@@ -1241,6 +1248,9 @@ public class DemoController implements MBeanRegisterAware {
 
     @Value("${signer.name}")
     private String _signer;
+
+    @Value("${nls.appkey}")
+    String _nlsAppkey;
 
     @Inject
     private BeanFinder _finder;
