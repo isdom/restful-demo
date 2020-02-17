@@ -457,7 +457,7 @@ public class DemoController implements MBeanRegisterAware {
     public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
         return executor.submit(
                 interacts -> interacts.compose(alisign()).compose(
-                        RpcDelegater.build(NlsmetaAPI.class).createToken().call()));
+                        RpcDelegater.build2(NlsmetaAPI.class).createToken().call()));
     }
 
     static interface ImageTag {
