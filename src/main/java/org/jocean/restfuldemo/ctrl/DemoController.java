@@ -33,10 +33,10 @@ import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
+import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
-import org.jocean.aliyun.nls.internal.DefaultNlsAPI;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.AliyunSigner2;
@@ -247,6 +247,19 @@ public class DemoController implements MBeanRegisterAware {
                 });
     }
 
+    Transformer<Interact, Interact> applytoken() {
+        return interacts ->
+            _finder.find(RpcExecutor.class).flatMap(executor -> nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(
+                    token -> interacts.doOnNext( interact -> interact.onrequest( obj -> {
+                        if (obj instanceof HttpRequest) {
+                            final HttpRequest req = (HttpRequest)obj;
+                            req.headers().set("X-NLS-Token", token);
+//                            req.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_OCTET_STREAM);
+//                            HttpUtil.setContentLength(req, content.contentLength());
+                        }
+                    }))));
+    }
+
     Transformer<Interact, Interact> appkey() {
         return interacts -> interacts.doOnNext( interact -> interact.paramAsQuery("appkey", _nlsAppkey));
     }
@@ -450,13 +463,11 @@ public class DemoController implements MBeanRegisterAware {
     @Path("nls/asr")
     @OPTIONS
     @POST
-    public Observable<AsrResponse> nlsasr(final RpcExecutor executor,
+    public Observable<AsrResponse> nlsasr(
+            final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
-        return nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(token -> getbody.flatMap(body -> executor.submit(
-                interacts -> interacts.compose(appkey()).compose(new DefaultNlsAPI().streamAsrV1(token, body, null, -1))
-                )));
-//        return nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(token -> getbody.flatMap(body -> executor.execute(_finder.find(NlsAPI.class)
-//                .map(api -> api.streamAsrV1(token, body, null, -1)))));
+        return getbody.flatMap(body -> executor.submit(interacts -> interacts.compose(applytoken()).compose(appkey())
+                .compose(RpcDelegater.build2(NlsAPI.class).streamAsrV1().body(body).call())));
     }
 
     @Path("nls/token")
