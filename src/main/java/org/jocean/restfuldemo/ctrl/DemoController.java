@@ -466,8 +466,13 @@ public class DemoController implements MBeanRegisterAware {
     public Observable<AsrResponse> nlsasr(
             final RpcExecutor executor,
             final Observable<MessageBody> getbody) {
-        return getbody.flatMap(body -> executor.submit(interacts -> interacts.compose(applytoken()).compose(appkey())
-                .compose(RpcDelegater.build2(NlsAPI.class).streamAsrV1().body(body).call())));
+        return executor.submit(interacts ->
+            interacts.compose(applytoken())
+                .compose(appkey())
+                .compose(RpcDelegater.build2(NlsAPI.class)
+                        .streamAsrV1()
+                        .body(getbody.doOnNext( body -> LOG.info("nlsasr get body {} inside build2", body)))
+                        .call()));
     }
 
     @Path("nls/token")
