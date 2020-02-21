@@ -272,11 +272,9 @@ public class DemoController implements MBeanRegisterAware {
         });
     }
 
-    // TODO used by EcsAPI
     Transformer<Interact, Interact> alisign_sts(final String roleName) {
-        return interacts ->
-        _finder.find(RpcExecutor.class).flatMap(executor ->
-            _finder.find(MetadataAPI.class).flatMap(api -> executor.execute(api.getSTSToken(roleName)))
+        return interacts -> _finder.find(RpcExecutor.class).flatMap(executor ->
+            executor.submit(RpcDelegater.build2(MetadataAPI.class).getSTSToken().roleName(roleName).call())
                 .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
                         SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken())))));
     }
@@ -489,7 +487,7 @@ public class DemoController implements MBeanRegisterAware {
     @GET
     public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign()).compose(
+                interacts -> interacts.compose(alisign_sts(_role)).compose(
                         RpcDelegater.build2(NlsmetaAPI.class).createToken().call()));
     }
 
@@ -1276,6 +1274,9 @@ public class DemoController implements MBeanRegisterAware {
 
     @Value("${nls.appkey}")
     String _nlsAppkey;
+
+    @Value("${role}")
+    String _role;
 
     @Inject
     private BeanFinder _finder;
