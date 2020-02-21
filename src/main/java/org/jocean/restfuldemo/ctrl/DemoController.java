@@ -40,6 +40,7 @@ import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.AliyunSigner2;
+import org.jocean.aliyun.sign.SignerV1;
 import org.jocean.bce.oauth.OAuthAPI;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.ContentUtil;
@@ -269,6 +270,15 @@ public class DemoController implements MBeanRegisterAware {
             LOG.info("alisign: sign by {}", signer);
             return interacts.doOnNext(signer);
         });
+    }
+
+    // TODO used by EcsAPI
+    Transformer<Interact, Interact> alisign_sts(final String roleName) {
+        return interacts ->
+        _finder.find(RpcExecutor.class).flatMap(executor ->
+            _finder.find(MetadataAPI.class).flatMap(api -> executor.execute(api.getSTSToken(roleName)))
+                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
+                        SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken())))));
     }
 
     @Path("wx/qrcode")
@@ -886,12 +896,11 @@ public class DemoController implements MBeanRegisterAware {
         return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getRegionId())).compose(urc);
     }
 
-    @Path("sts-token")
+    @Path("meta/ststoken")
     public Observable<Object> ststoken(final RpcExecutor executor,
-            final BeanFinder finder,
             @QueryParam("role") final String roleName,
             final UntilRequestCompleted<Object> urc) {
-        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getSTSToken(roleName))).compose(urc);
+        return executor.submit(RpcDelegater.build2(MetadataAPI.class).getSTSToken().roleName(roleName).call()).compose(urc);
     }
 
     @Path("echo")
