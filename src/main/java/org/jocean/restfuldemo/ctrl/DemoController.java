@@ -866,28 +866,28 @@ public class DemoController implements MBeanRegisterAware {
         ;
     }
 
-    @Path("private-ipv4")
+    @Path("meta/privateipv4")
     public Observable<String> private_ipv4(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
         return executor.submit(RpcDelegater.build2(MetadataAPI.class).privateIpv4().call()).compose(urc);
     }
 
-    @Path("hostname")
+    @Path("meta/hostname")
     public Observable<String> hostname(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
         return executor.submit(RpcDelegater.build2(MetadataAPI.class).hostname().call()).compose(urc);
     }
 
-    @Path("instance")
+    @Path("meta/instance")
     public Observable<String> instance(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
         return executor.submit(RpcDelegater.build2(MetadataAPI.class).instanceId().call()).compose(urc);
     }
 
-    @Path("region")
+    @Path("meta/region")
     public Observable<String> region(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
