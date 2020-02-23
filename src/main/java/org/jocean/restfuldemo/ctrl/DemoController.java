@@ -870,28 +870,28 @@ public class DemoController implements MBeanRegisterAware {
     public Observable<String> private_ipv4(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
-        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getPrivateIpv4())).compose(urc);
+        return executor.submit(RpcDelegater.build2(MetadataAPI.class).privateIpv4().call()).compose(urc);
     }
 
     @Path("hostname")
     public Observable<String> hostname(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
-        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getHostname())).compose(urc);
+        return executor.submit(RpcDelegater.build2(MetadataAPI.class).hostname().call()).compose(urc);
     }
 
     @Path("instance")
     public Observable<String> instance(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
-        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getInstanceId())).compose(urc);
+        return executor.submit(RpcDelegater.build2(MetadataAPI.class).instanceId().call()).compose(urc);
     }
 
     @Path("region")
     public Observable<String> region(final RpcExecutor executor,
             final BeanFinder finder,
             final UntilRequestCompleted<String> urc) {
-        return executor.execute(finder.find(MetadataAPI.class).map(api -> api.getRegionId())).compose(urc);
+        return executor.submit(RpcDelegater.build2(MetadataAPI.class).regionId().call()).compose(urc);
     }
 
     @Path("meta/ststoken")
