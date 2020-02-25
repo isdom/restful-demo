@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,6 +27,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 import org.jocean.aliyun.BlobRepo;
+import org.jocean.aliyun.BlobRepo.PutObjectResult;
 import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.EcsAPI;
@@ -38,8 +40,10 @@ import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
+import org.jocean.aliyun.oss.OSSUtil;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.AliyunSigner2;
+import org.jocean.aliyun.sign.Signer4OSS;
 import org.jocean.aliyun.sign.SignerV1;
 import org.jocean.bce.oauth.OAuthAPI;
 import org.jocean.http.ByteBufSlice;
@@ -113,6 +117,72 @@ import rx.functions.Action1;
 @Scope("singleton")
 public class DemoController implements MBeanRegisterAware {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
+
+    @Value("${oss.endpoint}")
+    private String _ossEndpoint;
+
+    @Value("${oss.bucket}")
+    private String _ossBucket;
+
+    @Value("${upload.path}")
+    private String _uploadPath;
+
+    @Path("oss/upload")
+    @POST
+    public Observable<Object> uploadNew(
+            final HttpRequest request,
+            final Observable<MessageBody> getbody,
+            final RpcExecutor executor) {
+        return handle100Continue(request)
+                .concatWith(executor.submit(
+                    interacts -> interacts.compose(alisign_sts_oss(_role))
+                    .compose(putObject(_ossBucket,  _uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""), getbody))));
+    }
+
+    private Transformer<Interact, PutObjectResult> putObject(
+            final String bucketName,
+            final String objname,
+            final Observable<MessageBody> getbody) {
+        return interacts -> interacts.flatMap( interact -> interact.name("oss.putObject").method(HttpMethod.PUT)
+                .uri(uri4bucket(bucketName))
+                .path("/" + objname)
+                .body(getbody)
+                .response()
+                .<HttpResponse>flatMap(resp -> {
+                    // https://help.aliyun.com/document_detail/32005.html?spm=a2c4g.11186623.6.1090.DeJEv5
+                    final String contentType = resp.message().headers().get(HttpHeaderNames.CONTENT_TYPE);
+                    if (null != contentType && contentType.startsWith("application/xml")) {
+                        return OSSUtil.extractAndReturnOSSError(resp, "putObject error");
+                    } else {
+                        return Observable.just(resp.message());
+                    }
+                })
+                .map(resp -> resp.headers().get(HttpHeaderNames.ETAG)).<PutObjectResult>map(etag -> {
+                    final String unquotes_etag = etag.replaceAll("\"", "");
+                    return new PutObjectResult() {
+                        @Override
+                        public String objectName() {
+                            return objname;
+                        }
+
+                        @Override
+                        public String etag() {
+                            return unquotes_etag;
+                        }
+                    };
+                }));
+    }
+
+    private String uri4bucket(final String bucketName) {
+        return "http://" + bucketName + "." + _ossEndpoint;
+    }
+
+    Transformer<Interact, Interact> alisign_sts_oss(final String roleName) {
+        return interacts -> _finder.find(RpcExecutor.class).flatMap(executor ->
+            executor.submit(RpcDelegater.build2(MetadataAPI.class).getSTSToken().roleName(roleName).call())
+                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
+                        Signer4OSS.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken())))));
+    }
 
     @Value("${xfyun_appid}")
     String _xfyun_appid;
