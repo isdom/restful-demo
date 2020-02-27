@@ -27,7 +27,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
 import org.jocean.aliyun.BlobRepo;
-import org.jocean.aliyun.BlobRepo.PutObjectResult;
 import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.EcsAPI;
@@ -40,7 +39,7 @@ import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
-import org.jocean.aliyun.oss.OSSUtil;
+import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.AliyunSigner2;
 import org.jocean.aliyun.sign.Signer4OSS;
@@ -136,9 +135,14 @@ public class DemoController implements MBeanRegisterAware {
         return handle100Continue(request)
                 .concatWith(executor.submit(
                     interacts -> interacts.compose(alisign_sts_oss(_role))
-                    .compose(putObject(_ossBucket,  _uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""), getbody))));
+                    .compose(RpcDelegater.build2(OssAPI.class).putObject()
+                            .bucket(_ossBucket)
+                            .endpoint(_ossEndpoint)
+                            .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
+                            .body(getbody).call())));
     }
 
+    /*
     private Transformer<Interact, PutObjectResult> putObject(
             final String bucketName,
             final String objname,
@@ -176,6 +180,7 @@ public class DemoController implements MBeanRegisterAware {
     private String uri4bucket(final String bucketName) {
         return "http://" + bucketName + "." + _ossEndpoint;
     }
+    */
 
     Transformer<Interact, Interact> alisign_sts_oss(final String roleName) {
         return interacts -> _finder.find(RpcExecutor.class).flatMap(executor ->
