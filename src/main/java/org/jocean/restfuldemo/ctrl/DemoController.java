@@ -126,6 +126,16 @@ public class DemoController implements MBeanRegisterAware {
     @Value("${upload.path}")
     private String _uploadPath;
 
+    @Path("oss/meta")
+    public Observable<Object> ossmeta(@QueryParam("obj") final String objname, final RpcExecutor executor) {
+        return executor.submit(
+                interacts -> interacts.compose(alisign_sts_oss(_role))
+                .compose(RpcDelegater.build2(OssAPI.class).getSimplifiedObjectMeta()
+                        .bucket(_ossBucket)
+                        .endpoint(_ossEndpoint)
+                        .object(objname).call()));
+    }
+
     @Path("oss/upload")
     @POST
     public Observable<Object> uploadNew(
