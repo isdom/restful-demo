@@ -127,14 +127,24 @@ public class DemoController implements MBeanRegisterAware {
     private String _uploadPath;
 
     @Path("oss/listobj")
-    public Observable<String> list( @QueryParam("prefix") final String prefix,
+    public Observable<String> list(
+            @QueryParam("prefix") final String prefix,
+            @QueryParam("marker") final String marker,
+            @QueryParam("delimiter") final String delimiter,
+            @QueryParam("encodingType") final String encodingType,
+            @QueryParam("maxKeys") final String maxKeys,
             final RpcExecutor executor) {
         return executor.submit(
                 interacts -> interacts.compose(alisign_sts_oss(_role))
                 .compose(RpcDelegater.build2(OssAPI.class).listObjects()
                         .bucket(_ossBucket)
                         .endpoint(_ossEndpoint)
-                        .prefix(prefix).call()))
+                        .prefix(prefix)
+                        .marker(marker)
+                        .delimiter(delimiter)
+                        .encodingType(encodingType)
+                        .maxKeys(maxKeys)
+                        .call()))
                 .map(listing -> listing.toString());
     }
 
