@@ -126,6 +126,21 @@ public class DemoController implements MBeanRegisterAware {
     @Value("${upload.path}")
     private String _uploadPath;
 
+    @Path("oss/copyobj")
+    public Observable<FullMessage<HttpResponse>> copyObject(
+            @QueryParam("dest") final String dest,
+            @QueryParam("sourcePath") final String sourcePath,
+            final RpcExecutor executor) {
+        return executor.submit(
+                interacts -> interacts.compose(alisign_sts_oss(_role))
+                .compose(RpcDelegater.build2(OssAPI.class).copyObject()
+                        .bucket(_ossBucket)
+                        .endpoint(_ossEndpoint)
+                        .destObject(dest)
+                        .source(sourcePath)
+                        .call()));
+    }
+
     @Path("oss/listobj")
     public Observable<String> list(
             @QueryParam("prefix") final String prefix,
