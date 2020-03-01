@@ -126,6 +126,35 @@ public class DemoController implements MBeanRegisterAware {
     @Value("${upload.path}")
     private String _uploadPath;
 
+    @Path("oss/symlink")
+    public Observable<FullMessage<HttpResponse>> symlink(
+            @QueryParam("symlink") final String symlink,
+            @QueryParam("target") final String target,
+            final RpcExecutor executor) {
+        return executor.submit(
+                interacts -> interacts.compose(alisign_sts_oss(_role))
+                .compose(RpcDelegater.build2(OssAPI.class).putSymlink()
+                        .bucket(_ossBucket)
+                        .endpoint(_ossEndpoint)
+                        .symlinkObject(symlink)
+                        .targetObject(target)
+                        .call()));
+    }
+
+    @Path("oss/delobj")
+    public Observable<FullMessage<HttpResponse>> deleteObject(
+            @QueryParam("obj") final String object,
+            @QueryParam("sourcePath") final String sourcePath,
+            final RpcExecutor executor) {
+        return executor.submit(
+                interacts -> interacts.compose(alisign_sts_oss(_role))
+                .compose(RpcDelegater.build2(OssAPI.class).deleteObject()
+                        .bucket(_ossBucket)
+                        .endpoint(_ossEndpoint)
+                        .object(object)
+                        .call()));
+    }
+
     @Path("oss/copyobj")
     public Observable<FullMessage<HttpResponse>> copyObject(
             @QueryParam("dest") final String dest,
