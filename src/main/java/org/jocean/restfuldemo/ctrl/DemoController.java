@@ -41,7 +41,6 @@ import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.sign.AliyunSigner;
-import org.jocean.aliyun.sign.AliyunSigner2;
 import org.jocean.aliyun.sign.Signer4OSS;
 import org.jocean.aliyun.sign.SignerV1;
 import org.jocean.bce.oauth.OAuthAPI;
@@ -471,7 +470,7 @@ public class DemoController implements MBeanRegisterAware {
     }
 
     Transformer<Interact, Interact> alisign() {
-        return interacts -> _finder.find(AliyunSigner2.class).flatMap(signer -> {
+        return interacts -> _finder.find(AliyunSigner.class).flatMap(signer -> {
             LOG.info("alisign: sign by {}", signer);
             return interacts.doOnNext(signer);
         });
@@ -502,9 +501,8 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/stopInstance with instanceId:{}/force:{}", instanceId, force);
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(EcsAPI.class).stopInstance()
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(
+                RpcDelegater.build2(EcsAPI.class).stopInstance()
                     .instanceId(instanceId)
                     .forceStop(force)
                     .call() ));
@@ -516,9 +514,8 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/deleteInstance with instanceId:{}/force:{}", instanceId, force);
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(EcsAPI.class).deleteInstance()
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(
+                RpcDelegater.build2(EcsAPI.class).deleteInstance()
                 .instanceId(instanceId)
                 .force(force)
                 .call() ));
@@ -528,9 +525,8 @@ public class DemoController implements MBeanRegisterAware {
     public Observable<? extends Object> startInstance(
             final RpcExecutor executor,
             @QueryParam("instance") final String instanceId) {
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(EcsAPI.class).startInstance()
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(
+                RpcDelegater.build2(EcsAPI.class).startInstance()
                 .instanceId(instanceId)
                 .call() ));
     }
@@ -583,9 +579,8 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("region") final String regionId,
             @QueryParam("instanceType") final String instanceType
             ) {
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(EcsAPI.class).describeSpotPriceHistory()
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(
+                RpcDelegater.build2(EcsAPI.class).describeSpotPriceHistory()
                     .regionId(regionId)
                     .instanceType(instanceType)
                     .networkType("vpc")
@@ -598,9 +593,8 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("vpc") final String vpcId,
             @QueryParam("instancename") final String instanceName
             ) {
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(EcsAPI.class).describeInstances()
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(
+                RpcDelegater.build2(EcsAPI.class).describeInstances()
                     .regionId(regionId)
                     .vpcId(vpcId)
                     .instanceName(instanceName)
@@ -615,14 +609,13 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("pagesize") final String pagesize
             ) {
 
-        final DescribeInstanceStatusBuilder builder = RpcDelegater.build(EcsAPI.class).describeInstanceStatus().regionId(regionId);
+        final DescribeInstanceStatusBuilder builder = RpcDelegater.build2(EcsAPI.class).describeInstanceStatus().regionId(regionId);
         if (null != pageidx && null != pagesize) {
             builder.pageNumber( Integer.parseInt(pageidx));
             builder.pageSize(Integer.parseInt(pagesize));
         }
 
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),builder.call()));
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(builder.call()));
     }
 
     @Path("ecs/describeUserData")
@@ -630,9 +623,8 @@ public class DemoController implements MBeanRegisterAware {
             final RpcExecutor executor,
             @QueryParam("instance") final String instance,
             @QueryParam("region") final String regionId) {
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer),
-                RpcDelegater.build(EcsAPI.class).describeUserData()
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(
+                RpcDelegater.build2(EcsAPI.class).describeUserData()
                     .instanceId(instance)
                     .regionId(regionId)
                     .call()));
@@ -647,7 +639,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("pageidx") final String pageidx,
             @QueryParam("pagesize") final String pagesize
             ) {
-        final DescribeInstanceRamRoleBuilder builder = RpcDelegater.build(EcsAPI.class).describeInstanceRamRole().regionId(regionId);
+        final DescribeInstanceRamRoleBuilder builder = RpcDelegater.build2(EcsAPI.class).describeInstanceRamRole().regionId(regionId);
 
         if (null != instances) {
             builder.instanceIds(instances);
@@ -665,8 +657,7 @@ public class DemoController implements MBeanRegisterAware {
             builder.pageSize(Integer.parseInt(pagesize));
         }
 
-        return _finder.find(_signer, AliyunSigner.class).flatMap(signer -> executor.execute(
-                runners -> runners.doOnNext(signer), builder.call()));
+        return executor.submit(interacts -> interacts.compose(alisign()).compose(builder.call()));
     }
 
 
