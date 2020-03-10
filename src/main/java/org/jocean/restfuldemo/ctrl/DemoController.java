@@ -59,11 +59,14 @@ import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.jmx.MBeanRegister;
 import org.jocean.idiom.jmx.MBeanRegisterAware;
-import org.jocean.lbsyun.LbsyunUtil;
+import org.jocean.lbsyun.LbsyunAPI;
+import org.jocean.lbsyun.LbsyunAPI.PositionResponse;
+import org.jocean.lbsyun.LbsyunSigner;
 import org.jocean.netty.util.BufsInputStream;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
+import org.jocean.rpc.RpcBuilder;
 import org.jocean.rpc.RpcDelegater;
 import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.FinderUtil;
@@ -1126,11 +1129,17 @@ public class DemoController implements MBeanRegisterAware {
     }
 
     @Path("ipv2")
-    public Observable<Object>  getCityByIpV2(@QueryParam("ip") final String ip,
+    public Observable<PositionResponse>  getCityByIpV2(@QueryParam("ip") final String ip,
             final RpcExecutor executor,
+            final RpcBuilder rb,
             final BeanFinder finder) {
-        return executor.execute(LbsyunUtil.ip2position(finder, ip))
-                .map(resp -> ResponseUtil.responseAsJson(200, resp));
+        return executor.submit(interacts -> interacts
+                .compose(lbsyunsign())
+                .compose(rb.build(LbsyunAPI.class).ip2position().ip(ip).call()));
+    }
+
+    Transformer<Interact, Interact> lbsyunsign() {
+        return interacts -> _finder.find(LbsyunSigner.class).flatMap(signer -> interacts.doOnNext(signer));
     }
 
     @SuppressWarnings("unchecked")
