@@ -81,6 +81,7 @@ import org.jocean.svr.WithSlice;
 import org.jocean.svr.ZipUtil;
 import org.jocean.svr.ZipUtil.TozipEntity;
 import org.jocean.svr.ZipUtil.ZipBuilder;
+import org.jocean.svr.annotation.RpcFacade;
 import org.jocean.wechat.AuthorizedMP;
 import org.jocean.wechat.WXCommonAPI;
 import org.jocean.wechat.WXCommonAPI.UploadTempMediaResponse;
@@ -121,7 +122,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/buy1")
     public Observable<? extends Object> buyPostPaid(
-            final RpcExecutor executor,
+            @RpcFacade("this.alisign_sts()") final EcsAPI api,
             @QueryParam("dryRun") final boolean dryRun,
             @QueryParam("region") final String regionId,
             @QueryParam("zone") final String zoneId,
@@ -134,8 +135,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("vSwitchId") final String vSwitchId,
             @QueryParam("keyPairName") final String keyPairName,
             @QueryParam("ramRoleName") final String ramRoleName) {
-        return executor.submit(interacts -> interacts.compose(alisign_sts(_role)).compose(
-                RpcDelegater.build(EcsAPI.class).createInstance()
+        return api.createInstance()
                 .dryRun(dryRun)
                 .imageId(imageId)
                 .instanceType(instanceType)
@@ -157,7 +157,7 @@ public class DemoController implements MBeanRegisterAware {
                 .keyPairName(keyPairName)
                 .ramRoleName(ramRoleName)
                 .securityEnhancementStrategy("Active")
-                .call() ));
+                .call();
     }
 
     @Value("${oss.endpoint}")
@@ -174,7 +174,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("symlink") final String symlink,
             final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss(_role))
+                interacts -> interacts.compose(alisign_sts_oss())
                 .compose(RpcDelegater.build(OssAPI.class).getSymlink()
                         .bucket(_ossBucket)
                         .endpoint(_ossEndpoint)
@@ -188,7 +188,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("target") final String target,
             final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss(_role))
+                interacts -> interacts.compose(alisign_sts_oss())
                 .compose(RpcDelegater.build(OssAPI.class).putSymlink()
                         .bucket(_ossBucket)
                         .endpoint(_ossEndpoint)
@@ -202,7 +202,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("obj") final String object,
             final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss(_role))
+                interacts -> interacts.compose(alisign_sts_oss())
                 .compose(RpcDelegater.build(OssAPI.class).deleteObject()
                         .bucket(_ossBucket)
                         .endpoint(_ossEndpoint)
@@ -216,7 +216,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("sourcePath") final String sourcePath,
             final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss(_role))
+                interacts -> interacts.compose(alisign_sts_oss())
                 .compose(RpcDelegater.build(OssAPI.class).copyObject()
                         .bucket(_ossBucket)
                         .endpoint(_ossEndpoint)
@@ -234,7 +234,7 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("maxKeys") final String maxKeys,
             final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss(_role))
+                interacts -> interacts.compose(alisign_sts_oss())
                 .compose(RpcDelegater.build(OssAPI.class).listObjects()
                         .bucket(_ossBucket)
                         .endpoint(_ossEndpoint)
@@ -250,7 +250,7 @@ public class DemoController implements MBeanRegisterAware {
     @Path("oss/meta")
     public Observable<String> ossmeta(@QueryParam("obj") final String objname, final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss(_role))
+                interacts -> interacts.compose(alisign_sts_oss())
                 .compose(RpcDelegater.build(OssAPI.class).getObjectMeta()
                         .bucket(_ossBucket)
                         .endpoint(_ossEndpoint)
@@ -266,7 +266,7 @@ public class DemoController implements MBeanRegisterAware {
             final RpcExecutor executor) {
         return handle100Continue(request)
                 .concatWith(executor.submit(
-                    interacts -> interacts.compose(alisign_sts_oss(_role))
+                    interacts -> interacts.compose(alisign_sts_oss())
                     .compose(RpcDelegater.build(OssAPI.class).putObject()
                             .bucket(_ossBucket)
                             .endpoint(_ossEndpoint)
@@ -314,9 +314,9 @@ public class DemoController implements MBeanRegisterAware {
     }
     */
 
-    Transformer<Interact, Interact> alisign_sts_oss(final String roleName) {
+    Transformer<Interact, Interact> alisign_sts_oss() {
         return interacts -> _finder.find(RpcExecutor.class).flatMap(executor ->
-            executor.submit(RpcDelegater.build(MetadataAPI.class).getSTSToken().roleName(roleName).call())
+            executor.submit(RpcDelegater.build(MetadataAPI.class).getSTSToken().roleName(_role).call())
                 .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
                         Signer4OSS.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken())))));
     }
@@ -475,13 +475,13 @@ public class DemoController implements MBeanRegisterAware {
     Transformer<Interact, Interact> alisign() {
         return interacts -> _finder.find(AliyunSigner.class).flatMap(signer -> {
             LOG.info("alisign: sign by {}", signer);
-            return interacts.doOnNext(signer);
+            return interacts.compose(signer);
         });
     }
 
-    Transformer<Interact, Interact> alisign_sts(final String roleName) {
+    Transformer<Interact, Interact> alisign_sts() {
         return interacts -> _finder.find(RpcExecutor.class).flatMap(executor ->
-            executor.submit(RpcDelegater.build(MetadataAPI.class).getSTSToken().roleName(roleName).call())
+            executor.submit(RpcDelegater.build(MetadataAPI.class).getSTSToken().roleName(_role).call())
                 .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
                         SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken())))));
     }
@@ -688,7 +688,7 @@ public class DemoController implements MBeanRegisterAware {
     @GET
     public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
         return executor.submit(
-                interacts -> interacts.compose(alisign_sts(_role)).compose(
+                interacts -> interacts.compose(alisign_sts()).compose(
                         RpcDelegater.build(NlsmetaAPI.class).createToken().call()));
     }
 
