@@ -172,57 +172,47 @@ public class DemoController implements MBeanRegisterAware {
     @Path("oss/getslink")
     public Observable<FullMessage<HttpResponse>> getslink(
             @QueryParam("symlink") final String symlink,
-            final RpcExecutor executor) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss())
-                .compose(RpcDelegater.build(OssAPI.class).getSymlink()
-                        .bucket(_ossBucket)
-                        .endpoint(_ossEndpoint)
-                        .symlinkObject(symlink)
-                        .call()));
+            @RpcFacade("this.alisign_sts_oss()") final OssAPI oss
+            ) {
+        return oss.getSymlink().bucket(_ossBucket).endpoint(_ossEndpoint).symlinkObject(symlink).call();
     }
 
     @Path("oss/putslink")
     public Observable<FullMessage<HttpResponse>> putslink(
             @QueryParam("symlink") final String symlink,
             @QueryParam("target") final String target,
-            final RpcExecutor executor) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss())
-                .compose(RpcDelegater.build(OssAPI.class).putSymlink()
-                        .bucket(_ossBucket)
-                        .endpoint(_ossEndpoint)
-                        .symlinkObject(symlink)
-                        .targetObject(target)
-                        .call()));
+            @RpcFacade("this.alisign_sts_oss()") final OssAPI oss
+            ) {
+        return oss.putSymlink()
+            .bucket(_ossBucket)
+            .endpoint(_ossEndpoint)
+            .symlinkObject(symlink)
+            .targetObject(target)
+            .call();
     }
 
     @Path("oss/delobj")
     public Observable<FullMessage<HttpResponse>> deleteObject(
             @QueryParam("obj") final String object,
-            final RpcExecutor executor) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss())
-                .compose(RpcDelegater.build(OssAPI.class).deleteObject()
-                        .bucket(_ossBucket)
-                        .endpoint(_ossEndpoint)
-                        .object(object)
-                        .call()));
+            @RpcFacade("this.alisign_sts_oss()") final OssAPI oss) {
+        return oss.deleteObject()
+            .bucket(_ossBucket)
+            .endpoint(_ossEndpoint)
+            .object(object)
+            .call();
     }
 
     @Path("oss/copyobj")
     public Observable<FullMessage<HttpResponse>> copyObject(
             @QueryParam("dest") final String dest,
             @QueryParam("sourcePath") final String sourcePath,
-            final RpcExecutor executor) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss())
-                .compose(RpcDelegater.build(OssAPI.class).copyObject()
-                        .bucket(_ossBucket)
-                        .endpoint(_ossEndpoint)
-                        .destObject(dest)
-                        .source(sourcePath)
-                        .call()));
+            @RpcFacade("this.alisign_sts_oss()") final OssAPI oss) {
+        return oss.copyObject()
+            .bucket(_ossBucket)
+            .endpoint(_ossEndpoint)
+            .destObject(dest)
+            .source(sourcePath)
+            .call();
     }
 
     @Path("oss/listobj")
@@ -232,30 +222,28 @@ public class DemoController implements MBeanRegisterAware {
             @QueryParam("delimiter") final String delimiter,
             @QueryParam("encodingType") final String encodingType,
             @QueryParam("maxKeys") final String maxKeys,
-            final RpcExecutor executor) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss())
-                .compose(RpcDelegater.build(OssAPI.class).listObjects()
-                        .bucket(_ossBucket)
-                        .endpoint(_ossEndpoint)
-                        .prefix(prefix)
-                        .marker(marker)
-                        .delimiter(delimiter)
-                        .encodingType(encodingType)
-                        .maxKeys(maxKeys)
-                        .call()))
-                .map(listing -> listing.toString());
+            @RpcFacade("this.alisign_sts_oss()") final OssAPI oss) {
+        return oss.listObjects()
+            .bucket(_ossBucket)
+            .endpoint(_ossEndpoint)
+            .prefix(prefix)
+            .marker(marker)
+            .delimiter(delimiter)
+            .encodingType(encodingType)
+            .maxKeys(maxKeys)
+            .call()
+            .map(listing -> listing.toString());
     }
 
     @Path("oss/meta")
-    public Observable<String> ossmeta(@QueryParam("obj") final String objname, final RpcExecutor executor) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign_sts_oss())
-                .compose(RpcDelegater.build(OssAPI.class).getObjectMeta()
-                        .bucket(_ossBucket)
-                        .endpoint(_ossEndpoint)
-                        .object(objname).call()))
-                .map( fullmsg -> fullmsg.message().headers().toString() );
+    public Observable<String> ossmeta(@QueryParam("obj") final String objname,
+            @RpcFacade("this.alisign_sts_oss()") final OssAPI oss) {
+        return oss.getObjectMeta()
+            .bucket(_ossBucket)
+            .endpoint(_ossEndpoint)
+            .object(objname)
+            .call()
+            .map( fullmsg -> fullmsg.message().headers().toString() );
     }
 
     @Path("oss/upload")
@@ -263,15 +251,14 @@ public class DemoController implements MBeanRegisterAware {
     public Observable<Object> uploadNew(
             final HttpRequest request,
             final Observable<MessageBody> getbody,
-            final RpcExecutor executor) {
+            @RpcFacade("this.alisign_sts_oss()") final OssAPI oss) {
         return handle100Continue(request)
-                .concatWith(executor.submit(
-                    interacts -> interacts.compose(alisign_sts_oss())
-                    .compose(RpcDelegater.build(OssAPI.class).putObject()
-                            .bucket(_ossBucket)
-                            .endpoint(_ossEndpoint)
-                            .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
-                            .body(getbody).call())));
+                .concatWith(oss.putObject()
+                        .bucket(_ossBucket)
+                        .endpoint(_ossEndpoint)
+                        .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
+                        .body(getbody)
+                        .call());
     }
 
     /*
