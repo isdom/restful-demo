@@ -66,7 +66,6 @@ import org.jocean.netty.util.BufsInputStream;
 import org.jocean.redis.RedisClient;
 import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
-import org.jocean.rpc.RpcBuilder;
 import org.jocean.rpc.RpcDelegater;
 import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.FinderUtil;
@@ -487,38 +486,30 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/stopInstance")
     public Observable<? extends Object> stopInstance(
-            final RpcExecutor executor,
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/stopInstance with instanceId:{}/force:{}", instanceId, force);
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(
-                RpcDelegater.build(EcsAPI.class).stopInstance()
-                    .instanceId(instanceId)
-                    .forceStop(force)
-                    .call() ));
+        return ecs.stopInstance().instanceId(instanceId).forceStop(force).call();
     }
 
     @Path("ecs/deleteInstance")
     public Observable<? extends Object> deleteInstance(
-            final RpcExecutor executor,
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/deleteInstance with instanceId:{}/force:{}", instanceId, force);
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(
-                RpcDelegater.build(EcsAPI.class).deleteInstance()
+        return ecs.deleteInstance()
                 .instanceId(instanceId)
                 .force(force)
-                .call() ));
+                .call();
     }
 
     @Path("ecs/startInstance")
     public Observable<? extends Object> startInstance(
-            final RpcExecutor executor,
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("instance") final String instanceId) {
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(
-                RpcDelegater.build(EcsAPI.class).startInstance()
-                .instanceId(instanceId)
-                .call() ));
+        return ecs.startInstance().instanceId(instanceId).call();
     }
 
     /*
@@ -565,71 +556,70 @@ public class DemoController implements MBeanRegisterAware {
     */
 
     @Path("ecs/describeSpotPriceHistory")
-    public Observable<? extends Object> describeSpotPriceHistory(final RpcExecutor executor,
+    public Observable<? extends Object> describeSpotPriceHistory(
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("instanceType") final String instanceType
             ) {
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(
-                RpcDelegater.build(EcsAPI.class).describeSpotPriceHistory()
+        return ecs.describeSpotPriceHistory()
                     .regionId(regionId)
                     .instanceType(instanceType)
                     .networkType("vpc")
-                    .call()));
+                    .call();
     }
 
     @Path("ecs/describeInstances")
-    public Observable<? extends Object> ecsDescribeInstances(final RpcExecutor executor,
+    public Observable<? extends Object> ecsDescribeInstances(
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("vpc") final String vpcId,
             @QueryParam("instancename") final String instanceName
             ) {
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(
-                RpcDelegater.build(EcsAPI.class).describeInstances()
+        return ecs.describeInstances()
                     .regionId(regionId)
                     .vpcId(vpcId)
                     .instanceName(instanceName)
-                    .call()));
+                    .call();
     }
 
     @Path("ecs/describeInstanceStatus")
     public Observable<? extends Object> ecsDescribeInstanceStatus(
-            final RpcExecutor executor,
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("pageidx") final String pageidx,
             @QueryParam("pagesize") final String pagesize
             ) {
 
-        final DescribeInstanceStatusBuilder builder = RpcDelegater.build(EcsAPI.class).describeInstanceStatus().regionId(regionId);
+        final DescribeInstanceStatusBuilder builder = ecs.describeInstanceStatus().regionId(regionId);
         if (null != pageidx && null != pagesize) {
             builder.pageNumber( Integer.parseInt(pageidx));
             builder.pageSize(Integer.parseInt(pagesize));
         }
 
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(builder.call()));
+        return builder.call();
     }
 
     @Path("ecs/describeUserData")
     public Observable<? extends Object> ecsDescribeUserData(
-            final RpcExecutor executor,
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("instance") final String instance,
             @QueryParam("region") final String regionId) {
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(
-                RpcDelegater.build(EcsAPI.class).describeUserData()
+        return ecs.describeUserData()
                     .instanceId(instance)
                     .regionId(regionId)
-                    .call()));
+                    .call();
     }
 
     @Path("ecs/describeInstanceRamRole")
     public Observable<? extends Object> ecsDescribeInstanceRamRole(
-            final RpcExecutor executor,
+            @RpcFacade({}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("instances") final String instances,
             @QueryParam("ramrole") final String ramrole,
             @QueryParam("pageidx") final String pageidx,
             @QueryParam("pagesize") final String pagesize
             ) {
-        final DescribeInstanceRamRoleBuilder builder = RpcDelegater.build(EcsAPI.class).describeInstanceRamRole().regionId(regionId);
+        final DescribeInstanceRamRoleBuilder builder = ecs.describeInstanceRamRole().regionId(regionId);
 
         if (null != instances) {
             builder.instanceIds(instances);
@@ -647,7 +637,7 @@ public class DemoController implements MBeanRegisterAware {
             builder.pageSize(Integer.parseInt(pagesize));
         }
 
-        return executor.submit(interacts -> interacts.compose(alisign()).compose(builder.call()));
+        return builder.call();
     }
 
 
@@ -1117,12 +1107,8 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ipv2")
     public Observable<PositionResponse>  getCityByIpV2(@QueryParam("ip") final String ip,
-            final RpcExecutor executor,
-            final RpcBuilder rb,
-            final BeanFinder finder) {
-        return executor.submit(interacts -> interacts
-                .compose(lbsyunsign())
-                .compose(rb.build(LbsyunAPI.class).ip2position().ip(ip).call()));
+            @RpcFacade({}) final LbsyunAPI lbsyun) {
+        return lbsyun.ip2position().ip(ip).call();
     }
 
     Transformer<Interact, Interact> lbsyunsign() {
