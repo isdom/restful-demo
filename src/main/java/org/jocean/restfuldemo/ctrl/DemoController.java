@@ -486,7 +486,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/stopInstance")
     public Observable<? extends Object> stopInstance(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/stopInstance with instanceId:{}/force:{}", instanceId, force);
@@ -495,7 +495,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/deleteInstance")
     public Observable<? extends Object> deleteInstance(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/deleteInstance with instanceId:{}/force:{}", instanceId, force);
@@ -507,7 +507,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/startInstance")
     public Observable<? extends Object> startInstance(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("instance") final String instanceId) {
         return ecs.startInstance().instanceId(instanceId).call();
     }
@@ -557,7 +557,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/describeSpotPriceHistory")
     public Observable<? extends Object> describeSpotPriceHistory(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("instanceType") final String instanceType
             ) {
@@ -570,7 +570,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/describeInstances")
     public Observable<? extends Object> ecsDescribeInstances(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("vpc") final String vpcId,
             @QueryParam("instancename") final String instanceName
@@ -584,7 +584,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/describeInstanceStatus")
     public Observable<? extends Object> ecsDescribeInstanceStatus(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("pageidx") final String pageidx,
             @QueryParam("pagesize") final String pagesize
@@ -601,7 +601,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/describeUserData")
     public Observable<? extends Object> ecsDescribeUserData(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("instance") final String instance,
             @QueryParam("region") final String regionId) {
         return ecs.describeUserData()
@@ -612,7 +612,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ecs/describeInstanceRamRole")
     public Observable<? extends Object> ecsDescribeInstanceRamRole(
-            @RpcFacade({}) final EcsAPI ecs,
+            @RpcFacade({"aliyun.default"}) final EcsAPI ecs,
             @QueryParam("region") final String regionId,
             @QueryParam("instances") final String instances,
             @QueryParam("ramrole") final String ramrole,
@@ -1107,7 +1107,7 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("ipv2")
     public Observable<PositionResponse>  getCityByIpV2(@QueryParam("ip") final String ip,
-            @RpcFacade({}) final LbsyunAPI lbsyun) {
+            @RpcFacade({"lbsyun_signer"}) final LbsyunAPI lbsyun) {
         return lbsyun.ip2position().ip(ip).call();
     }
 
