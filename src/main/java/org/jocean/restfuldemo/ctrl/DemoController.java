@@ -68,7 +68,6 @@ import org.jocean.redis.RedisUtil;
 import org.jocean.restfuldemo.bean.DemoRequest;
 import org.jocean.rpc.RpcDelegater;
 import org.jocean.svr.ByteBufSliceUtil;
-import org.jocean.svr.FinderUtil;
 import org.jocean.svr.MultipartTransformer;
 import org.jocean.svr.ResponseBean;
 import org.jocean.svr.ResponseUtil;
@@ -663,10 +662,9 @@ public class DemoController implements MBeanRegisterAware {
 
     @Path("nls/token")
     @GET
-    public Observable<CreateTokenResponse> nlstoken(final RpcExecutor executor) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign_sts()).compose(
-                        RpcDelegater.build(NlsmetaAPI.class).createToken().call()));
+    public Observable<CreateTokenResponse> nlstoken(
+            @RpcFacade("this.alisign_sts()") final NlsmetaAPI nlsmeta) {
+        return nlsmeta.createToken().call();
     }
 
     static interface ImageTag {
@@ -1045,38 +1043,44 @@ public class DemoController implements MBeanRegisterAware {
     }
 
     @Path("meta/privateipv4")
-    public Observable<String> private_ipv4(final RpcExecutor executor,
-            final BeanFinder finder,
+    public Observable<String> private_ipv4(
+            @RpcFacade
+            final MetadataAPI meta,
             final UntilRequestCompleted<String> urc) {
-        return executor.submit(RpcDelegater.build(MetadataAPI.class).privateIpv4().call()).compose(urc);
+        return meta.privateIpv4().call().compose(urc);
     }
 
     @Path("meta/hostname")
-    public Observable<String> hostname(final RpcExecutor executor,
-            final BeanFinder finder,
+    public Observable<String> hostname(
+            @RpcFacade
+            final MetadataAPI meta,
             final UntilRequestCompleted<String> urc) {
-        return executor.submit(RpcDelegater.build(MetadataAPI.class).hostname().call()).compose(urc);
+        return meta.hostname().call().compose(urc);
     }
 
     @Path("meta/instance")
-    public Observable<String> instance(final RpcExecutor executor,
-            final BeanFinder finder,
+    public Observable<String> instance(
+            @RpcFacade
+            final MetadataAPI meta,
             final UntilRequestCompleted<String> urc) {
-        return executor.submit(RpcDelegater.build(MetadataAPI.class).instanceId().call()).compose(urc);
+        return meta.instanceId().call().compose(urc);
     }
 
     @Path("meta/region")
-    public Observable<String> region(final RpcExecutor executor,
-            final BeanFinder finder,
+    public Observable<String> region(
+            @RpcFacade
+            final MetadataAPI meta,
             final UntilRequestCompleted<String> urc) {
-        return executor.submit(RpcDelegater.build(MetadataAPI.class).regionId().call()).compose(urc);
+        return meta.regionId().call().compose(urc);
     }
 
     @Path("meta/ststoken")
-    public Observable<Object> ststoken(final RpcExecutor executor,
+    public Observable<Object> ststoken(
+            @RpcFacade
+            final MetadataAPI meta,
             @QueryParam("role") final String roleName,
             final UntilRequestCompleted<Object> urc) {
-        return executor.submit(RpcDelegater.build(MetadataAPI.class).getSTSToken().roleName(roleName).call()).compose(urc);
+        return meta.getSTSToken().roleName(roleName).call().compose(urc);
     }
 
     @Path("echo")
@@ -1244,17 +1248,15 @@ public class DemoController implements MBeanRegisterAware {
     @Path("proxy")
     public BinaryResponse proxy(
             @QueryParam("uri") final String uri,
+            final RpcExecutor executor,
             final TradeContext tctx,
-            final ZipBuilder zb,
-            final BeanFinder finder) {
+            final ZipBuilder zb) {
 
         tctx.writeCtrl().sended().subscribe(msg -> DisposableWrapperUtil.dispose(msg));
 
         final AtomicInteger unzipedSize = new AtomicInteger(0);
 
         tctx.haltable().doOnHalt(() -> LOG.info("total unziped size is: {}", unzipedSize.get()));
-
-        final Observable<RpcRunner> rpcs = FinderUtil.rpc(finder).ib(tctx.interactBuilder()).runner();
 
         return new BinaryResponse("1.zip") {
             @Override
@@ -1264,7 +1266,7 @@ public class DemoController implements MBeanRegisterAware {
 
             @Override
             public Observable<? extends ByteBufSlice> slices() {
-                return rpcs.compose(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
+                return executor.execute(fetch(uri)).flatMap(fullmsg -> fullmsg.body()).<TozipEntity>map(body -> new TozipEntity() {
                     @Override
                     public String entryName() {
                         return "123.txt";
