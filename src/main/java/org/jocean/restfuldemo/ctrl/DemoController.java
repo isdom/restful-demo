@@ -57,8 +57,6 @@ import org.jocean.http.server.HttpServerBuilder.HttpTrade;
 import org.jocean.idiom.BeanFinder;
 import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.DisposableWrapperUtil;
-import org.jocean.idiom.jmx.MBeanRegister;
-import org.jocean.idiom.jmx.MBeanRegisterAware;
 import org.jocean.lbsyun.LbsyunAPI;
 import org.jocean.lbsyun.LbsyunAPI.PositionResponse;
 import org.jocean.lbsyun.LbsyunSigner;
@@ -114,8 +112,8 @@ import rx.functions.Action1;
 
 @Path("/newrest/")
 @Controller
-@Scope("singleton")
-public class DemoController implements MBeanRegisterAware {
+@Scope("prototype")
+public class DemoController /* implements MBeanRegisterAware */ {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
     @Path("ecs/buy1")
@@ -299,11 +297,19 @@ public class DemoController implements MBeanRegisterAware {
     }
     */
 
+    @RpcFacade
+    MetadataAPI.STSTokenBuilder  getststoken;
+
     Transformer<Interact, Interact> alisign_sts_oss() {
-        return interacts -> _finder.find(RpcExecutor.class).flatMap(executor ->
-            executor.submit(RpcDelegater.build(MetadataAPI.class).getSTSToken().roleName(_role).call())
+        return interacts -> getststoken.roleName(_role).call()
                 .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
-                        Signer4OSS.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken())))));
+                        Signer4OSS.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken()))));
+    }
+
+    Transformer<Interact, Interact> alisign_sts() {
+        return interacts -> getststoken.roleName(_role).call()
+                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
+                        SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken()))));
     }
 
     @Value("${xfyun_appid}")
@@ -423,13 +429,12 @@ public class DemoController implements MBeanRegisterAware {
     */
 
     @Path("ivision/imagePredict")
-    public Observable<? extends Object> ivisionImagePredict(final RpcExecutor executor,
+    public Observable<? extends Object> ivisionImagePredict(
+            @RpcFacade("this.alisign()") final IvisionAPI ivisionAPI,
             @QueryParam("dataurl") final String dataUrl,
             @QueryParam("modelid") final String modelId
             ) {
-        return executor.submit(
-                interacts -> interacts.compose(alisign()).compose(
-                        RpcDelegater.build(IvisionAPI.class).imagePredict().modelId(modelId).dataUrl(dataUrl).call()))
+        return ivisionAPI.imagePredict().modelId(modelId).dataUrl(dataUrl).call()
                 .map(resp -> {
                     if (resp.getImagePredict().getStatus().equals("Success")) {
                         return JSON.parseObject(resp.getImagePredict().getPredictResult(),
@@ -462,13 +467,6 @@ public class DemoController implements MBeanRegisterAware {
             LOG.info("alisign: sign by {}", signer);
             return interacts.compose(signer);
         });
-    }
-
-    Transformer<Interact, Interact> alisign_sts() {
-        return interacts -> _finder.find(RpcExecutor.class).flatMap(executor ->
-            executor.submit(RpcDelegater.build(MetadataAPI.class).getSTSToken().roleName(_role).call())
-                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
-                        SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken())))));
     }
 
     @Path("wx/qrcode")
@@ -865,12 +863,12 @@ public class DemoController implements MBeanRegisterAware {
         final Observable<Long> _shared = Observable.timer(1, TimeUnit.SECONDS).share();
     }
 
+    /*
     @Override
     public void setMBeanRegister(final MBeanRegister register) {
-//        final Observable<Long> shared = Observable.timer(1, TimeUnit.SECONDS).share();
-
         register.registerMBean("name=task", new Task());
     }
+    */
 
     @Value("${wx.appid}")
     String _appid;
