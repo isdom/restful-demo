@@ -34,6 +34,8 @@ import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
+import org.jocean.aliyun.nls.NlsAPI;
+import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
@@ -442,21 +444,15 @@ public class DemoController /* implements MBeanRegisterAware */ {
                 });
     }
 
-    /*
-     *  TBD: re-impl this method 2020.08.19
     Transformer<Interact, Interact> applytoken() {
-        return interacts ->
-            _finder.find(RpcExecutor.class).flatMap(executor -> nlstoken(executor).map(resp -> resp.getNlsToken().getId()).flatMap(
-                    token -> interacts.doOnNext( interact -> interact.onrequest( obj -> {
-                        if (obj instanceof HttpRequest) {
-                            final HttpRequest req = (HttpRequest)obj;
-                            req.headers().set("X-NLS-Token", token);
-//                            req.headers().set(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.APPLICATION_OCTET_STREAM);
-//                            HttpUtil.setContentLength(req, content.contentLength());
-                        }
-                    }))));
+        return interacts -> nlstoken().map(resp -> resp.getNlsToken().getId())
+                .flatMap(token -> interacts.doOnNext(interact -> interact.onrequest(obj -> {
+                    if (obj instanceof HttpRequest) {
+                        final HttpRequest req = (HttpRequest) obj;
+                        req.headers().set("X-NLS-Token", token);
+                    }
+                })));
     }
-    */
 
     Transformer<Interact, Interact> appkey() {
         return interacts -> interacts.doOnNext( interact -> interact.paramAsQuery("appkey", _nlsAppkey));
@@ -643,28 +639,24 @@ public class DemoController /* implements MBeanRegisterAware */ {
         return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
     }
 
-    /*
-     * TBD: re-impl this method 2020.08.19
+    @RpcFacade({"this.applytoken()", "this.appkey()"})
+    NlsAPI nlsapi;
+
     @Path("nls/asr")
     @OPTIONS
     @POST
-    public Observable<AsrResponse> nlsasr(
-            final RpcExecutor executor,
-            final Observable<MessageBody> getbody) {
-        return executor.submit(interacts ->
-            interacts.compose(applytoken())
-                .compose(appkey())
-                .compose(RpcDelegater.build(NlsAPI.class)
-                        .streamAsrV1()
-                        .body(getbody.doOnNext( body -> LOG.info("nlsasr get body {} inside build2", body)))
-                        .call()));
+    public Observable<AsrResponse> nlsasr(final Observable<MessageBody> getbody) {
+        return nlsapi.streamAsrV1()
+            .body(getbody.doOnNext( body -> LOG.info("nlsasr get body {} inside build2", body)))
+            .call();
     }
-    */
+
+    @RpcFacade("this.alisign_sts()")
+    NlsmetaAPI nlsmeta;
 
     @Path("nls/token")
     @GET
-    public Observable<CreateTokenResponse> nlstoken(
-            @RpcFacade("this.alisign_sts()") final NlsmetaAPI nlsmeta) {
+    public Observable<CreateTokenResponse> nlstoken() {
         return nlsmeta.createToken().call();
     }
 
