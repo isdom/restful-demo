@@ -1035,6 +1035,7 @@ public class DemoController /* implements MBeanRegisterAware */ {
         ;
     }
 
+    /*
     @Path("meta/privateipv4")
     public Observable<String> private_ipv4(
             @RpcFacade
@@ -1075,6 +1076,7 @@ public class DemoController /* implements MBeanRegisterAware */ {
             final UntilRequestCompleted<Object> urc) {
         return meta.getSTSToken().roleName(roleName).call().compose(urc);
     }
+    */
 
     @Path("echo")
     public Observable<String> echo(@QueryParam("s") final String s, @QueryParam("delay") final int delay, final UntilRequestCompleted<String> urc) {
