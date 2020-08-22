@@ -29,7 +29,6 @@ import javax.ws.rs.core.MediaType;
 import org.jocean.aliyun.BlobRepo;
 import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
-import org.jocean.aliyun.ecs.EcsAPI;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
 import org.jocean.aliyun.nls.NlsAPI;
@@ -112,46 +111,6 @@ import rx.functions.Action1;
 @Scope("prototype")
 public class DemoController /* implements MBeanRegisterAware */ {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
-
-    @Path("ecs/buy1")
-    public Observable<? extends Object> buyPostPaid(
-            @RpcFacade("this.alisign_sts()") final EcsAPI api,
-            @QueryParam("dryRun") final boolean dryRun,
-            @QueryParam("region") final String regionId,
-            @QueryParam("zone") final String zoneId,
-            @QueryParam("instanceType") final String instanceType,
-            @QueryParam("imageId") final String imageId,
-            @QueryParam("securityGroupId") final String securityGroupId,
-//            @QueryParam("instanceName") final String instanceName,
-//            @QueryParam("hostName") final String hostName,
-//            @QueryParam("description") final String description,
-            @QueryParam("vSwitchId") final String vSwitchId,
-            @QueryParam("keyPairName") final String keyPairName,
-            @QueryParam("ramRoleName") final String ramRoleName) {
-        return api.createInstance()
-                .dryRun(dryRun)
-                .imageId(imageId)
-                .instanceType(instanceType)
-                .regionId(regionId)
-                .zoneId(zoneId)
-                .securityGroupId(securityGroupId)
-                .internetMaxBandwidthOut(0)
-//                .internetChargeType("PayByTraffic")
-//                .instanceName(instanceName)
-//                .hostName(hostName)
-                .systemDiskSize(20)
-                .systemDiskCategory("cloud_efficiency")
-                .ioOptimized("optimized")
-//                .description(description)
-                .vSwitchId(vSwitchId)
-                .useAdditionalService(true)
-                .instanceChargeType("PostPaid")
-                .spotStrategy("NoSpot")
-                .keyPairName(keyPairName)
-                .ramRoleName(ramRoleName)
-                .securityEnhancementStrategy("Active")
-                .call();
-    }
 
     @Value("${oss.endpoint}")
     private String _ossEndpoint;

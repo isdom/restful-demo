@@ -6,13 +6,18 @@ import javax.ws.rs.QueryParam;
 import org.jocean.aliyun.ecs.EcsAPI;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceRamRoleBuilder;
 import org.jocean.aliyun.ecs.EcsAPI.DescribeInstanceStatusBuilder;
+import org.jocean.aliyun.ecs.MetadataAPI;
+import org.jocean.aliyun.sign.SignerV1;
+import org.jocean.http.Interact;
 import org.jocean.svr.annotation.RpcFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import rx.Observable;
+import rx.Observable.Transformer;
 
 @Path("/newrest/")
 @Controller
@@ -22,6 +27,58 @@ public class EcsDemo {
 
     @RpcFacade({"aliyun.default"})
     EcsAPI ecs;
+
+    @RpcFacade
+    MetadataAPI.STSTokenBuilder  getststoken;
+
+    @Value("${role}")
+    String _role;
+
+    Transformer<Interact, Interact> alisign_sts() {
+        return interacts -> getststoken.roleName(_role).call()
+                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
+                        SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken()))));
+    }
+
+    @Path("ecs/buy1")
+    public Observable<? extends Object> buyPostPaid(
+            @RpcFacade("this.alisign_sts()") final EcsAPI api,
+            @QueryParam("dryRun") final boolean dryRun,
+            @QueryParam("region") final String regionId,
+            @QueryParam("zone") final String zoneId,
+            @QueryParam("instanceType") final String instanceType,
+            @QueryParam("imageId") final String imageId,
+            @QueryParam("securityGroupId") final String securityGroupId,
+//            @QueryParam("instanceName") final String instanceName,
+//            @QueryParam("hostName") final String hostName,
+//            @QueryParam("description") final String description,
+            @QueryParam("vSwitchId") final String vSwitchId,
+            @QueryParam("keyPairName") final String keyPairName,
+            @QueryParam("ramRoleName") final String ramRoleName) {
+        return api.createInstance()
+                .dryRun(dryRun)
+                .imageId(imageId)
+                .instanceType(instanceType)
+                .regionId(regionId)
+                .zoneId(zoneId)
+                .securityGroupId(securityGroupId)
+                .internetMaxBandwidthOut(0)
+//                .internetChargeType("PayByTraffic")
+//                .instanceName(instanceName)
+//                .hostName(hostName)
+                .systemDiskSize(20)
+                .systemDiskCategory("cloud_efficiency")
+                .ioOptimized("optimized")
+//                .description(description)
+                .vSwitchId(vSwitchId)
+                .useAdditionalService(true)
+                .instanceChargeType("PostPaid")
+                .spotStrategy("NoSpot")
+                .keyPairName(keyPairName)
+                .ramRoleName(ramRoleName)
+                .securityEnhancementStrategy("Active")
+                .call();
+    }
 
     @Path("ecs/stopInstance")
     public Observable<? extends Object> stopInstance(
