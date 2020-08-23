@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,7 +35,6 @@ import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
-import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.Signer4OSS;
 import org.jocean.aliyun.sign.SignerV1;
@@ -112,6 +110,7 @@ import rx.functions.Action1;
 public class DemoController /* implements MBeanRegisterAware */ {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
+    /*
     @Value("${oss.endpoint}")
     private String _ossEndpoint;
 
@@ -212,6 +211,7 @@ public class DemoController /* implements MBeanRegisterAware */ {
                         .body(getbody)
                         .call());
     }
+    */
 
     /*
     private Transformer<Interact, PutObjectResult> putObject(
@@ -255,6 +255,9 @@ public class DemoController /* implements MBeanRegisterAware */ {
 
     @RpcFacade
     MetadataAPI.STSTokenBuilder  getststoken;
+
+    @Value("${role}")
+    String _role;
 
     Transformer<Interact, Interact> alisign_sts_oss() {
         return interacts -> getststoken.roleName(_role).call()
@@ -1251,9 +1254,6 @@ public class DemoController /* implements MBeanRegisterAware */ {
 
     @Value("${nls.appkey}")
     String _nlsAppkey;
-
-    @Value("${role}")
-    String _role;
 
     @Inject
     private BeanFinder _finder;
