@@ -30,10 +30,6 @@ import org.jocean.aliyun.ccs.CCSChatAPI;
 import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
-import org.jocean.aliyun.nls.NlsAPI;
-import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
-import org.jocean.aliyun.nls.NlsmetaAPI;
-import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.Signer4OSS;
@@ -404,20 +400,6 @@ public class DemoController /* implements MBeanRegisterAware */ {
                 });
     }
 
-    Transformer<Interact, Interact> applytoken() {
-        return interacts -> nlstoken().map(resp -> resp.getNlsToken().getId())
-                .flatMap(token -> interacts.doOnNext(interact -> interact.onrequest(obj -> {
-                    if (obj instanceof HttpRequest) {
-                        final HttpRequest req = (HttpRequest) obj;
-                        req.headers().set("X-NLS-Token", token);
-                    }
-                })));
-    }
-
-    Transformer<Interact, Interact> appkey() {
-        return interacts -> interacts.doOnNext( interact -> interact.paramAsQuery("appkey", _nlsAppkey));
-    }
-
     Transformer<Interact, Interact> alisign() {
         return interacts -> _finder.find(AliyunSigner.class).flatMap(signer -> {
             LOG.info("alisign: sign by {}", signer);
@@ -440,27 +422,6 @@ public class DemoController /* implements MBeanRegisterAware */ {
     @Path("bce/accesstoken")
     public Observable<? extends Object> bceAccessToken(final RpcExecutor executor) {
         return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
-    }
-
-    @RpcFacade({"this.applytoken()", "this.appkey()"})
-    NlsAPI nlsapi;
-
-    @Path("nls/asr")
-    @OPTIONS
-    @POST
-    public Observable<AsrResponse> nlsasr(final Observable<MessageBody> getbody) {
-        return nlsapi.streamAsrV1()
-            .body(getbody.doOnNext( body -> LOG.info("nlsasr get body {} inside build2", body)))
-            .call();
-    }
-
-    @RpcFacade("this.alisign_sts()")
-    NlsmetaAPI nlsmeta;
-
-    @Path("nls/token")
-    @GET
-    public Observable<CreateTokenResponse> nlstoken() {
-        return nlsmeta.createToken().call();
     }
 
     static interface ImageTag {
@@ -838,49 +799,6 @@ public class DemoController /* implements MBeanRegisterAware */ {
         ;
     }
 
-    /*
-    @Path("meta/privateipv4")
-    public Observable<String> private_ipv4(
-            @RpcFacade
-            final MetadataAPI meta,
-            final UntilRequestCompleted<String> urc) {
-        return meta.privateIpv4().call().compose(urc);
-    }
-
-    @Path("meta/hostname")
-    public Observable<String> hostname(
-            @RpcFacade
-            final MetadataAPI meta,
-            final UntilRequestCompleted<String> urc) {
-        return meta.hostname().call().compose(urc);
-    }
-
-    @Path("meta/instance")
-    public Observable<String> instance(
-            @RpcFacade
-            final MetadataAPI meta,
-            final UntilRequestCompleted<String> urc) {
-        return meta.instanceId().call().compose(urc);
-    }
-
-    @Path("meta/region")
-    public Observable<String> region(
-            @RpcFacade
-            final MetadataAPI meta,
-            final UntilRequestCompleted<String> urc) {
-        return meta.regionId().call().compose(urc);
-    }
-
-    @Path("meta/ststoken")
-    public Observable<Object> ststoken(
-            @RpcFacade
-            final MetadataAPI meta,
-            @QueryParam("role") final String roleName,
-            final UntilRequestCompleted<Object> urc) {
-        return meta.getSTSToken().roleName(roleName).call().compose(urc);
-    }
-    */
-
     @Path("echo")
     public Observable<String> echo(@QueryParam("s") final String s, @QueryParam("delay") final int delay, final UntilRequestCompleted<String> urc) {
         return Observable.just(s).delay(delay, TimeUnit.MILLISECONDS).compose(urc);
@@ -1251,9 +1169,6 @@ public class DemoController /* implements MBeanRegisterAware */ {
 
     @Value("${signer.name}")
     private String _signer;
-
-    @Value("${nls.appkey}")
-    String _nlsAppkey;
 
     @Inject
     private BeanFinder _finder;
