@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,6 +32,7 @@ import org.jocean.aliyun.ccs.CCSChatUtil;
 import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.ivision.IvisionAPI;
 import org.jocean.aliyun.oss.BlobRepoOverOSS;
+import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.sign.AliyunSigner;
 import org.jocean.aliyun.sign.Signer4OSS;
 import org.jocean.aliyun.sign.SignerV1;
@@ -106,7 +108,6 @@ import rx.functions.Action1;
 public class DemoController /* implements MBeanRegisterAware */ {
     private static final Logger LOG = LoggerFactory.getLogger(DemoController.class);
 
-    /*
     @Value("${oss.endpoint}")
     private String _ossEndpoint;
 
@@ -207,7 +208,6 @@ public class DemoController /* implements MBeanRegisterAware */ {
                         .body(getbody)
                         .call());
     }
-    */
 
     /*
     private Transformer<Interact, PutObjectResult> putObject(
@@ -420,8 +420,9 @@ public class DemoController /* implements MBeanRegisterAware */ {
     }
 
     @Path("bce/accesstoken")
-    public Observable<? extends Object> bceAccessToken(final RpcExecutor executor) {
-        return executor.execute(_finder.find(OAuthAPI.class).map(api -> api.getAccessToken() ));
+    public Observable<? extends Object> bceAccessToken(@RpcFacade final OAuthAPI api) {
+        // TODO: fill clientId & client_secret field
+        return api.getAccessToken().call();
     }
 
     static interface ImageTag {
