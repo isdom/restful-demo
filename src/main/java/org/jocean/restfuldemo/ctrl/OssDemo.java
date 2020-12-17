@@ -2,13 +2,16 @@ package org.jocean.restfuldemo.ctrl;
 
 import java.util.UUID;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
-import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.oss.OssAPI;
+import org.jocean.aliyun.oss.OssBucket;
 import org.jocean.aliyun.sign.Signer4OSS;
+import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.Interact;
@@ -31,35 +34,30 @@ import rx.Observable.Transformer;
 public class OssDemo {
     // private static final Logger LOG = LoggerFactory.getLogger(OssDemo.class);
 
-    @Value("${oss.endpoint}")
-    private String _ossEndpoint;
+    @Inject
+    @Named("${ecs.id}-stsc")
+    STSCredentials _stsc;
 
-    @Value("${oss.bucket}")
-    private String _ossBucket;
+    @Inject
+    @Named("ossbucket-${oss.bucket}")
+    private OssBucket _bucket;
 
     @Value("${upload.path}")
     private String _uploadPath;
 
-    @RpcFacade
-    MetadataAPI.STSTokenBuilder  getststoken;
-
     Transformer<Interact, Interact> alisign_sts_oss() {
-        return interacts -> getststoken.roleName(_role).call()
-                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
-                        Signer4OSS.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken()))));
+        return interacts -> interacts.doOnNext(
+                interact -> interact.onsending(Signer4OSS.signRequest(_stsc)));
     }
 
     @RpcFacade("this.alisign_sts_oss()")
     OssAPI oss;
 
-    @Value("${role}")
-    String _role;
-
     @Path("oss/getslink")
     public Observable<FullMessage<HttpResponse>> getslink(
             @QueryParam("symlink") final String symlink
             ) {
-        return oss.getSymlink().bucket(_ossBucket).endpoint(_ossEndpoint).symlinkObject(symlink).call();
+        return _bucket.apply(oss.getSymlink()).symlinkObject(symlink).call();
     }
 
     @Path("oss/putslink")
@@ -67,9 +65,7 @@ public class OssDemo {
             @QueryParam("symlink") final String symlink,
             @QueryParam("target") final String target
             ) {
-        return oss.putSymlink()
-            .bucket(_ossBucket)
-            .endpoint(_ossEndpoint)
+        return _bucket.apply(oss.putSymlink())
             .symlinkObject(symlink)
             .targetObject(target)
             .call();
@@ -79,9 +75,7 @@ public class OssDemo {
     public Observable<FullMessage<HttpResponse>> deleteObject(
             @QueryParam("obj") final String object
             ) {
-        return oss.deleteObject()
-            .bucket(_ossBucket)
-            .endpoint(_ossEndpoint)
+        return _bucket.apply(oss.deleteObject())
             .object(object)
             .call();
     }
@@ -91,9 +85,7 @@ public class OssDemo {
             @QueryParam("dest") final String dest,
             @QueryParam("sourcePath") final String sourcePath
             ) {
-        return oss.copyObject()
-            .bucket(_ossBucket)
-            .endpoint(_ossEndpoint)
+        return _bucket.apply(oss.copyObject())
             .destObject(dest)
             .source(sourcePath)
             .call();
@@ -107,9 +99,7 @@ public class OssDemo {
             @QueryParam("encodingType") final String encodingType,
             @QueryParam("maxKeys") final String maxKeys
             ) {
-        return oss.listObjects()
-            .bucket(_ossBucket)
-            .endpoint(_ossEndpoint)
+        return _bucket.apply(oss.listObjects())
             .prefix(prefix)
             .marker(marker)
             .delimiter(delimiter)
@@ -123,9 +113,7 @@ public class OssDemo {
     public Observable<String> ossmeta(
             @QueryParam("obj") final String objname
             ) {
-        return oss.getObjectMeta()
-            .bucket(_ossBucket)
-            .endpoint(_ossEndpoint)
+        return _bucket.apply(oss.getObjectMeta())
             .object(objname)
             .call()
             .map( fullmsg -> fullmsg.message().headers().toString() );
@@ -138,9 +126,7 @@ public class OssDemo {
             final Observable<MessageBody> getbody
             ) {
         return handle100Continue(request)
-                .concatWith(oss.putObject()
-                        .bucket(_ossBucket)
-                        .endpoint(_ossEndpoint)
+                .concatWith(_bucket.apply(oss.putObject())
                         .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
                         .body(getbody)
                         .call());
