@@ -10,7 +10,6 @@ import javax.ws.rs.QueryParam;
 
 import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.oss.OssBucket;
-import org.jocean.aliyun.sign.Signer4OSS;
 import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
@@ -46,8 +45,7 @@ public class OssDemo {
     private String _uploadPath;
 
     Transformer<Interact, Interact> alisign_sts_oss() {
-        return interacts -> interacts.doOnNext(
-                interact -> interact.onsending(Signer4OSS.signRequest(_stsc)));
+        return _stsc.ossSigner();
     }
 
     @RpcFacade("this.alisign_sts_oss()")
