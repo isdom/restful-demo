@@ -1,16 +1,18 @@
 package org.jocean.restfuldemo.ctrl;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.OPTIONS;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
-import org.jocean.aliyun.ecs.MetadataAPI;
 import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
 import org.jocean.aliyun.sign.SignerV1;
+import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.Interact;
 import org.jocean.http.MessageBody;
 import org.jocean.svr.annotation.RpcFacade;
@@ -37,16 +39,22 @@ public class NlsDemo {
         return interacts -> interacts.doOnNext( interact -> interact.paramAsQuery("appkey", _nlsAppkey));
     }
 
-    @Value("${role}")
-    String _role;
+//    @Value("${role}")
+//    String _role;
+//
+//    @RpcFacade
+//    MetadataAPI.STSTokenBuilder  getststoken;
 
-    @RpcFacade
-    MetadataAPI.STSTokenBuilder  getststoken;
+    @Inject
+    @Named("${ecs.id}-stsc")
+    STSCredentials _stsc;
 
     Transformer<Interact, Interact> alisign_sts() {
-        return interacts -> getststoken.roleName(_role).call()
-                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
-                        SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken()))));
+        return interacts -> interacts.doOnNext(
+                interact -> interact.onsending(SignerV1.signRequest(_stsc.getAccessKeyId(), _stsc.getAccessKeySecret(), _stsc.getSecurityToken())));
+//        return interacts -> getststoken.roleName(_role).call()
+//                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
+//                        SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken()))));
     }
 
     @RpcFacade("this.alisign_sts()")
