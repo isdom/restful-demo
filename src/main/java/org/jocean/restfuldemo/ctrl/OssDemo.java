@@ -51,6 +51,11 @@ public class OssDemo {
     @RpcFacade("this.alisign_sts_oss()")
     OssAPI oss;
 
+    @Path("oss/getobj")
+    public Observable<FullMessage<HttpResponse>> getobj(@QueryParam("obj") final String object) {
+        return _bucket.apply(oss.getObject()).object(object).call();
+    }
+
     @Path("oss/getslink")
     public Observable<FullMessage<HttpResponse>> getslink(
             @QueryParam("symlink") final String symlink
@@ -70,9 +75,7 @@ public class OssDemo {
     }
 
     @Path("oss/delobj")
-    public Observable<FullMessage<HttpResponse>> deleteObject(
-            @QueryParam("obj") final String object
-            ) {
+    public Observable<FullMessage<HttpResponse>> deleteObject(@QueryParam("obj") final String object) {
         return _bucket.apply(oss.deleteObject())
             .object(object)
             .call();
