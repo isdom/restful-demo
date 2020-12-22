@@ -23,6 +23,7 @@ import org.springframework.stereotype.Controller;
 
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import rx.Observable;
 import rx.Observable.Transformer;
@@ -52,8 +53,14 @@ public class OssDemo {
     OssAPI oss;
 
     @Path("oss/getobj")
-    public Observable<FullMessage<HttpResponse>> getobj(@QueryParam("obj") final String object) {
-        return _bucket.apply(oss.getObject()).object(object).call();
+    public /*Observable<FullMessage<HttpResponse>>*/ Object getobj(@QueryParam("obj") final String object) {
+        return _bucket.apply(oss.getObject()).object(object).call().map(fullresp -> {
+            if (fullresp.message().status().equals(HttpResponseStatus.OK)) {
+                return fullresp;
+            } else {
+                return fullresp.message().toString();
+            }
+        });
     }
 
     @Path("oss/getslink")
