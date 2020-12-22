@@ -15,6 +15,7 @@ import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.Interact;
 import org.jocean.http.MessageBody;
+import org.jocean.http.MessageUtil;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.annotation.RpcFacade;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,12 +54,12 @@ public class OssDemo {
     OssAPI oss;
 
     @Path("oss/getobj")
-    public /*Observable<FullMessage<HttpResponse>>*/ Object getobj(@QueryParam("obj") final String object) {
-        return _bucket.apply(oss.getObject()).object(object).call().map(fullresp -> {
+    public Observable<Object> getobj(@QueryParam("obj") final String object) {
+        return _bucket.apply(oss.getObject()).object(object).call().flatMap(fullresp -> {
             if (fullresp.message().status().equals(HttpResponseStatus.OK)) {
-                return fullresp;
+                return Observable.just(fullresp);
             } else {
-                return fullresp.message().toString();
+                return fullresp.body().flatMap(body -> MessageUtil.decodeContentAs(body.content(), (is, cls) -> MessageUtil.parseContentAsString(is), String.class) );
             }
         });
     }
