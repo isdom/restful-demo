@@ -41,6 +41,7 @@ dependencies {
     compile "ch.qos.logback:logback-classic:1.2.3"
     
     compile 'commons-httpclient:commons-httpclient:3.1'
+    compile 'org.apache.commons:commons-lang3:3.4'
     
     compile 'com.hynnet:jxl:2.6.12.1'
 
