@@ -8,33 +8,35 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
+import org.jocean.aliyun.oss.OSSUtil;
 import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.oss.OssBucket;
-import org.jocean.aliyun.oss.OssError;
+import org.jocean.aliyun.oss.OssException;
 import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.Interact;
 import org.jocean.http.MessageBody;
-import org.jocean.http.MessageUtil;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.annotation.RpcFacade;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import rx.Observable;
 import rx.Observable.Transformer;
+
 
 @Path("/newrest/")
 @Controller
 @Scope("prototype")
 public class OssDemo {
-    // private static final Logger LOG = LoggerFactory.getLogger(OssDemo.class);
+    private static final Logger LOG = LoggerFactory.getLogger(OssDemo.class);
 
     @Inject
     @Named("${ecs.id}-stsc")
@@ -55,15 +57,19 @@ public class OssDemo {
     OssAPI oss;
 
     @Path("oss/getobj")
-    public Observable<Object> getobj(@QueryParam("obj") final String object) {
-        return _bucket.apply(oss.getObject()).object(object).call().flatMap(fullresp -> {
-            if (fullresp.message().status().equals(HttpResponseStatus.OK)) {
-                return Observable.just(fullresp);
-            } else {
-                return fullresp.body().flatMap(body -> MessageUtil.decodeXmlAs(body, OssError.class));
-                 // MessageUtil.decodeContentAs(body.content(), (is, cls) -> MessageUtil.parseContentAsString(is), String.class) );
-            }
-        });
+    public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
+        return _bucket.apply(oss.getObject()).object(object).call()
+//                .flatMap(fullresp -> {
+//            if (fullresp.message().status().equals(HttpResponseStatus.OK)) {
+//                return Observable.just(fullresp);
+//            } else {
+//                return fullresp.body().flatMap(body -> MessageUtil.decodeXmlAs(body, OssError.class));
+//            }
+//        });
+                .compose(OSSUtil.checkOssError())
+                .map(fullresp -> (Object)fullresp)
+                .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
+                .onErrorReturn(e -> ((OssException)e).error().toString());
     }
 
     @Path("oss/getslink")
