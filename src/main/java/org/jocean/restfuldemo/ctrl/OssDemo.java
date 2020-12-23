@@ -8,9 +8,9 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
-import org.jocean.aliyun.oss.OSSError;
 import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.oss.OssBucket;
+import org.jocean.aliyun.oss.OssError;
 import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
@@ -60,7 +60,7 @@ public class OssDemo {
             if (fullresp.message().status().equals(HttpResponseStatus.OK)) {
                 return Observable.just(fullresp);
             } else {
-                return fullresp.body().flatMap(body -> MessageUtil.decodeXmlAs(body, OSSError.class));
+                return fullresp.body().flatMap(body -> MessageUtil.decodeXmlAs(body, OssError.class));
                  // MessageUtil.decodeContentAs(body.content(), (is, cls) -> MessageUtil.parseContentAsString(is), String.class) );
             }
         });
