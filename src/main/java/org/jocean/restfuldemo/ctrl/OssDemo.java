@@ -8,10 +8,10 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
-import org.jocean.aliyun.oss.OSSUtil;
 import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.oss.OssBucket;
 import org.jocean.aliyun.oss.OssException;
+import org.jocean.aliyun.oss.OssUtil;
 import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
@@ -66,7 +66,7 @@ public class OssDemo {
 //                return fullresp.body().flatMap(body -> MessageUtil.decodeXmlAs(body, OssError.class));
 //            }
 //        });
-                .compose(OSSUtil.checkOssError())
+                .compose(OssUtil.checkOssError())
                 .map(fullresp -> (Object)fullresp)
                 .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
                 .onErrorReturn(e -> ((OssException)e).error().toString());
