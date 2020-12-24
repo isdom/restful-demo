@@ -11,7 +11,6 @@ import javax.ws.rs.QueryParam;
 import org.jocean.aliyun.oss.OssAPI;
 import org.jocean.aliyun.oss.OssBucket;
 import org.jocean.aliyun.oss.OssException;
-import org.jocean.aliyun.oss.OssUtil;
 import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
@@ -59,15 +58,8 @@ public class OssDemo {
     @Path("oss/getobj")
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
         return _bucket.apply(oss.getObject()).object(object).call()
-//                .flatMap(fullresp -> {
-//            if (fullresp.message().status().equals(HttpResponseStatus.OK)) {
-//                return Observable.just(fullresp);
-//            } else {
-//                return fullresp.body().flatMap(body -> MessageUtil.decodeXmlAs(body, OssError.class));
-//            }
-//        });
-                .compose(OssUtil.checkOssError())
-                .map(fullresp -> (Object)fullresp)
+//                .compose(OssUtil.checkOssError())
+                .<Object>map(fullresp -> fullresp)
                 .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
                 .onErrorReturn(e -> ((OssException)e).error().toString());
     }
