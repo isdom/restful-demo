@@ -58,7 +58,6 @@ public class OssDemo {
     @Path("oss/getobj")
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
         return _bucket.apply(oss.getObject()).object(object).call()
-//                .compose(OssUtil.checkOssError())
                 .<Object>map(fullresp -> fullresp)
                 .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
                 .onErrorReturn(e -> ((OssException)e).error().toString());
@@ -138,7 +137,9 @@ public class OssDemo {
                 .concatWith(_bucket.apply(oss.putObject())
                         .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
                         .body(getbody)
-                        .call());
+                        .call()
+                        .map(result -> "etag:" + result.etag() + "/requestid:" + result.xossRequestId()))
+                ;
     }
 
     private Observable<Object> handle100Continue(final HttpRequest request) {
