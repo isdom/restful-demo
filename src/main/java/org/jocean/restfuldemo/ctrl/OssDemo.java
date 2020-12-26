@@ -138,7 +138,7 @@ public class OssDemo {
                         .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
                         .body(getbody)
                         .call()
-                        .map(result -> "etag:" + result.etag() + "/requestid:" + result.xossRequestId()))
+                        .map(result -> result.toString()))
                 ;
     }
 
