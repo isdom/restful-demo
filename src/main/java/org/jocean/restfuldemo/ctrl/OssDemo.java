@@ -46,17 +46,16 @@ public class OssDemo {
     @Value("${upload.path}")
     private String _uploadPath;
 
-//    Transformer<Interact, Interact> alisign_sts_oss() {
-//        return _stsc.ossSigner();
-//    }
-
     @RpcFacade
-    // ("this.alisign_sts_oss()")
     OssAPI oss;
 
     @Path("oss/getobj")
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
-        return _bucket.apply(oss.getObject()).object(object).signer(_stsc.ossSigner()) .call()
+        return oss.getObject()
+                .bucket(_bucket)
+                .object(object)
+                .signer(_stsc.ossSigner())
+                .call()
                 .<Object>map(fullresp -> fullresp)
                 .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
                 .onErrorReturn(e -> ((OssException)e).error().toString());
@@ -66,7 +65,7 @@ public class OssDemo {
     public Observable<FullMessage<HttpResponse>> getslink(
             @QueryParam("symlink") final String symlink
             ) {
-        return _bucket.apply(oss.getSymlink()).symlinkObject(symlink).call();
+        return oss.getSymlink().bucket(_bucket).symlinkObject(symlink).call();
     }
 
     @Path("oss/putslink")
@@ -74,7 +73,8 @@ public class OssDemo {
             @QueryParam("symlink") final String symlink,
             @QueryParam("target") final String target
             ) {
-        return _bucket.apply(oss.putSymlink())
+        return oss.putSymlink()
+            .bucket(_bucket)
             .symlinkObject(symlink)
             .targetObject(target)
             .call();
@@ -82,7 +82,8 @@ public class OssDemo {
 
     @Path("oss/delobj")
     public Observable<FullMessage<HttpResponse>> deleteObject(@QueryParam("obj") final String object) {
-        return _bucket.apply(oss.deleteObject())
+        return oss.deleteObject()
+            .bucket(_bucket)
             .object(object)
             .call();
     }
@@ -92,7 +93,8 @@ public class OssDemo {
             @QueryParam("dest") final String dest,
             @QueryParam("sourcePath") final String sourcePath
             ) {
-        return _bucket.apply(oss.copyObject())
+        return oss.copyObject()
+            .bucket(_bucket)
             .destObject(dest)
             .source(sourcePath)
             .call();
@@ -106,7 +108,8 @@ public class OssDemo {
             @QueryParam("encodingType") final String encodingType,
             @QueryParam("maxKeys") final String maxKeys
             ) {
-        return _bucket.apply(oss.listObjects())
+        return oss.listObjects()
+            .bucket(_bucket)
             .prefix(prefix)
             .marker(marker)
             .delimiter(delimiter)
@@ -120,7 +123,8 @@ public class OssDemo {
     public Observable<String> ossmeta(
             @QueryParam("obj") final String objname
             ) {
-        return _bucket.apply(oss.getObjectMeta())
+        return oss.getObjectMeta()
+            .bucket(_bucket)
             .object(objname)
             .call()
             .map( fullmsg -> fullmsg.message().headers().toString() );
@@ -133,7 +137,8 @@ public class OssDemo {
             final Observable<MessageBody> getbody
             ) {
         return handle100Continue(request)
-                .concatWith(_bucket.apply(oss.putObject())
+                .concatWith(oss.putObject()
+                        .bucket(_bucket)
                         .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
                         .body(getbody)
                         .call()
