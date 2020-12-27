@@ -14,7 +14,6 @@ import org.jocean.aliyun.oss.OssException;
 import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
-import org.jocean.http.Interact;
 import org.jocean.http.MessageBody;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.annotation.RpcFacade;
@@ -28,7 +27,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpUtil;
 import rx.Observable;
-import rx.Observable.Transformer;
 
 
 @Path("/newrest/")
@@ -48,16 +46,17 @@ public class OssDemo {
     @Value("${upload.path}")
     private String _uploadPath;
 
-    Transformer<Interact, Interact> alisign_sts_oss() {
-        return _stsc.ossSigner();
-    }
+//    Transformer<Interact, Interact> alisign_sts_oss() {
+//        return _stsc.ossSigner();
+//    }
 
-    @RpcFacade("this.alisign_sts_oss()")
+    @RpcFacade
+    // ("this.alisign_sts_oss()")
     OssAPI oss;
 
     @Path("oss/getobj")
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
-        return _bucket.apply(oss.getObject()).object(object).call()
+        return _bucket.apply(oss.getObject()).object(object).signer(_stsc.ossSigner()) .call()
                 .<Object>map(fullresp -> fullresp)
                 .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
                 .onErrorReturn(e -> ((OssException)e).error().toString());
