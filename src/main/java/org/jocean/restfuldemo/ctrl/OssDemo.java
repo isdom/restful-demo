@@ -65,7 +65,11 @@ public class OssDemo {
     public Observable<FullMessage<HttpResponse>> getslink(
             @QueryParam("symlink") final String symlink
             ) {
-        return oss.getSymlink().bucket(_bucket).symlinkObject(symlink).call();
+        return oss.getSymlink()
+//                .signer(_stsc.ossSigner())
+                .bucket(_bucket)
+                .symlinkObject(symlink)
+                .call();
     }
 
     @Path("oss/putslink")
@@ -74,6 +78,7 @@ public class OssDemo {
             @QueryParam("target") final String target
             ) {
         return oss.putSymlink()
+//            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .symlinkObject(symlink)
             .targetObject(target)
@@ -83,6 +88,7 @@ public class OssDemo {
     @Path("oss/delobj")
     public Observable<FullMessage<HttpResponse>> deleteObject(@QueryParam("obj") final String object) {
         return oss.deleteObject()
+//            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .object(object)
             .call();
@@ -94,6 +100,7 @@ public class OssDemo {
             @QueryParam("sourcePath") final String sourcePath
             ) {
         return oss.copyObject()
+//            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .destObject(dest)
             .source(sourcePath)
@@ -109,6 +116,7 @@ public class OssDemo {
             @QueryParam("maxKeys") final String maxKeys
             ) {
         return oss.listObjects()
+//            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .prefix(prefix)
             .marker(marker)
@@ -124,6 +132,7 @@ public class OssDemo {
             @QueryParam("obj") final String objname
             ) {
         return oss.getObjectMeta()
+//            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .object(objname)
             .call()
@@ -138,6 +147,7 @@ public class OssDemo {
             ) {
         return handle100Continue(request)
                 .concatWith(oss.putObject()
+                .signer(_stsc.ossSigner())
                 .bucket(_bucket)
                 .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
                 .body(getbody)
