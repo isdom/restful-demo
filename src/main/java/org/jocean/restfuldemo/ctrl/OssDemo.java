@@ -151,44 +151,4 @@ public class OssDemo {
             ? Observable.<Object>just(ResponseUtil.response().setStatus(100), DoFlush.Util.flushOnly())
             : Observable.empty();
     }
-
-    /*
-    private Transformer<Interact, PutObjectResult> putObject(
-            final String bucketName,
-            final String objname,
-            final Observable<MessageBody> getbody) {
-        return interacts -> interacts.flatMap( interact -> interact.name("oss.putObject").method(HttpMethod.PUT)
-                .uri(uri4bucket(bucketName))
-                .path("/" + objname)
-                .body(getbody)
-                .response()
-                .<HttpResponse>flatMap(resp -> {
-                    // https://help.aliyun.com/document_detail/32005.html?spm=a2c4g.11186623.6.1090.DeJEv5
-                    final String contentType = resp.message().headers().get(HttpHeaderNames.CONTENT_TYPE);
-                    if (null != contentType && contentType.startsWith("application/xml")) {
-                        return OSSUtil.extractAndReturnOSSError(resp, "putObject error");
-                    } else {
-                        return Observable.just(resp.message());
-                    }
-                })
-                .map(resp -> resp.headers().get(HttpHeaderNames.ETAG)).<PutObjectResult>map(etag -> {
-                    final String unquotes_etag = etag.replaceAll("\"", "");
-                    return new PutObjectResult() {
-                        @Override
-                        public String objectName() {
-                            return objname;
-                        }
-
-                        @Override
-                        public String etag() {
-                            return unquotes_etag;
-                        }
-                    };
-                }));
-    }
-
-    private String uri4bucket(final String bucketName) {
-        return "http://" + bucketName + "." + _ossEndpoint;
-    }
-    */
 }
