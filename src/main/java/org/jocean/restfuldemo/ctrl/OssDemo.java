@@ -52,9 +52,9 @@ public class OssDemo {
     @Path("oss/getobj")
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
         return oss.getObject()
+                .signer(_stsc.ossSigner())
                 .bucket(_bucket)
                 .object(object)
-                .signer(_stsc.ossSigner())
                 .call()
                 .<Object>map(fullresp -> fullresp)
                 .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
@@ -138,11 +138,13 @@ public class OssDemo {
             ) {
         return handle100Continue(request)
                 .concatWith(oss.putObject()
-                        .bucket(_bucket)
-                        .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
-                        .body(getbody)
-                        .call()
-                        .map(result -> result.toString()))
+                .bucket(_bucket)
+                .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
+                .body(getbody)
+                .call()
+                .map(result -> result.toString()))
+                .doOnError( e -> LOG.warn("error when uploadNew, detail: {}", ((OssException)e).error()))
+                .onErrorReturn(e -> ((OssException)e).error().toString())
                 ;
     }
 
