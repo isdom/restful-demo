@@ -105,7 +105,7 @@ public class OssDemo {
             @QueryParam("sourcePath") final String sourcePath
             ) {
         return oss.copyObject()
-//            .signer(_stsc.ossSigner())
+            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .destObject(dest)
             .source(sourcePath)
