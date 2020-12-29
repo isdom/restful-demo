@@ -15,6 +15,7 @@ import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
+import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.annotation.RpcFacade;
 import org.slf4j.Logger;
@@ -110,8 +111,15 @@ public class OssDemo {
             .source(sourcePath)
             .call()
             .<Object>map(fullresp -> fullresp)
-            .doOnError( e -> LOG.warn("error when copyobj, detail: {}", ((OssException)e).error()))
-            .onErrorReturn(e -> ((OssException)e).error().toString())
+            .onErrorReturn(e -> {
+                if (e instanceof OssException) {
+                    LOG.warn("error when copyobj, detail: {}", ((OssException)e).error());
+                    return ((OssException)e).error().toString();
+                } else {
+                    LOG.warn("error when copyobj, detail: {}", ExceptionUtils.exception2detail(e));
+                    return e.getMessage();
+                }
+            })
             ;
     }
 
