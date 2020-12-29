@@ -88,7 +88,7 @@ public class OssDemo {
     @Path("oss/delobj")
     public Observable<FullMessage<HttpResponse>> deleteObject(@QueryParam("obj") final String object) {
         return oss.deleteObject()
-//            .signer(_stsc.ossSigner())
+            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .object(object)
             .call();
