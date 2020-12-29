@@ -86,16 +86,20 @@ public class OssDemo {
     }
 
     @Path("oss/delobj")
-    public Observable<FullMessage<HttpResponse>> deleteObject(@QueryParam("obj") final String object) {
+    public Observable<Object> deleteObject(@QueryParam("obj") final String object) {
         return oss.deleteObject()
             .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .object(object)
-            .call();
+            .call()
+            .<Object>map(fullresp -> fullresp)
+            .doOnError( e -> LOG.warn("error when delobj, detail: {}", ((OssException)e).error()))
+            .onErrorReturn(e -> ((OssException)e).error().toString())
+            ;
     }
 
     @Path("oss/copyobj")
-    public Observable<FullMessage<HttpResponse>> copyObject(
+    public Observable<Object> copyObject(
             @QueryParam("dest") final String dest,
             @QueryParam("sourcePath") final String sourcePath
             ) {
@@ -104,7 +108,11 @@ public class OssDemo {
             .bucket(_bucket)
             .destObject(dest)
             .source(sourcePath)
-            .call();
+            .call()
+            .<Object>map(fullresp -> fullresp)
+            .doOnError( e -> LOG.warn("error when copyobj, detail: {}", ((OssException)e).error()))
+            .onErrorReturn(e -> ((OssException)e).error().toString())
+            ;
     }
 
     @Path("oss/listobj")
