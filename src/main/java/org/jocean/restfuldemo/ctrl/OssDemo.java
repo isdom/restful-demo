@@ -94,8 +94,17 @@ public class OssDemo {
             .object(object)
             .call()
             .<Object>map(fullresp -> fullresp)
-            .doOnError( e -> LOG.warn("error when delobj, detail: {}", ((OssException)e).error()))
-            .onErrorReturn(e -> ((OssException)e).error().toString())
+            .onErrorReturn(e -> {
+                if (e instanceof OssException) {
+                    LOG.warn("error when copyobj, detail: {}", ((OssException)e).error());
+                    return ((OssException)e).error().toString();
+                } else {
+                    LOG.warn("error when copyobj, detail: {}", ExceptionUtils.exception2detail(e));
+                    return e.getMessage();
+                }
+            })
+//            .doOnError( e -> LOG.warn("error when delobj, detail: {}", ((OssException)e).error()))
+//            .onErrorReturn(e -> ((OssException)e).error().toString())
             ;
     }
 
@@ -132,7 +141,7 @@ public class OssDemo {
             @QueryParam("maxKeys") final String maxKeys
             ) {
         return oss.listObjects()
-//            .signer(_stsc.ossSigner())
+            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .prefix(prefix)
             .marker(marker)
