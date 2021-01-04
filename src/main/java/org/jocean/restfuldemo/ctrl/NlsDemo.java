@@ -11,7 +11,6 @@ import org.jocean.aliyun.nls.NlsAPI;
 import org.jocean.aliyun.nls.NlsAPI.AsrResponse;
 import org.jocean.aliyun.nls.NlsmetaAPI;
 import org.jocean.aliyun.nls.NlsmetaAPI.CreateTokenResponse;
-import org.jocean.aliyun.sign.SignerV1;
 import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.Interact;
 import org.jocean.http.MessageBody;
@@ -32,38 +31,17 @@ import rx.Observable.Transformer;
 public class NlsDemo {
     private static final Logger LOG = LoggerFactory.getLogger(NlsDemo.class);
 
-    @Value("${nls.appkey}")
-    String _nlsAppkey;
-
-    Transformer<Interact, Interact> appkey() {
-        return interacts -> interacts.doOnNext( interact -> interact.paramAsQuery("appkey", _nlsAppkey));
-    }
-
-//    @Value("${role}")
-//    String _role;
-//
-//    @RpcFacade
-//    MetadataAPI.STSTokenBuilder  getststoken;
-
     @Inject
     @Named("${ecs.id}-stsc")
     STSCredentials _stsc;
 
-    Transformer<Interact, Interact> alisign_sts() {
-        return interacts -> interacts.doOnNext(
-                interact -> interact.onsending(SignerV1.signRequest(_stsc.getAccessKeyId(), _stsc.getAccessKeySecret(), _stsc.getSecurityToken())));
-//        return interacts -> getststoken.roleName(_role).call()
-//                .flatMap(stsresp -> interacts.doOnNext( interact -> interact.onsending(
-//                        SignerV1.signRequest(stsresp.getAccessKeyId(), stsresp.getAccessKeySecret(), stsresp.getSecurityToken()))));
-    }
-
-    @RpcFacade("this.alisign_sts()")
+    @RpcFacade
     NlsmetaAPI nlsmeta;
 
     @Path("nls/token")
     @GET
     public Observable<CreateTokenResponse> nlstoken() {
-        return nlsmeta.createToken().call();
+        return nlsmeta.createToken().signer(_stsc.aliSigner()).call();
     }
 
     Transformer<Interact, Interact> applytoken() {
@@ -76,7 +54,14 @@ public class NlsDemo {
                 })));
     }
 
-    @RpcFacade({"this.applytoken()", "this.appkey()"})
+    @Value("${nls.appkey}")
+    String _nlsAppkey;
+
+    Transformer<Interact, Interact> appkey() {
+        return interacts -> interacts.doOnNext( interact -> interact.paramAsQuery("appkey", _nlsAppkey));
+    }
+
+    @RpcFacade
     NlsAPI nlsapi;
 
     @Path("nls/asr")
@@ -84,6 +69,8 @@ public class NlsDemo {
     @POST
     public Observable<AsrResponse> nlsasr(final Observable<MessageBody> getbody) {
         return nlsapi.streamAsrV1()
+            .appkey(appkey())
+            .nlstoken(applytoken())
             .body(getbody.doOnNext( body -> LOG.info("nlsasr get body {} inside @RpcFacade", body)))
             .call();
     }

@@ -240,13 +240,16 @@ public class DemoController /* implements MBeanRegisterAware */ {
     }
     */
 
+    @Inject
+    AliyunSigner _aliSigner;
+
     @Path("ivision/imagePredict")
     public Observable<? extends Object> ivisionImagePredict(
-            @RpcFacade("this.alisign()") final IvisionAPI ivisionAPI,
+            @RpcFacade final IvisionAPI ivisionAPI,
             @QueryParam("dataurl") final String dataUrl,
             @QueryParam("modelid") final String modelId
             ) {
-        return ivisionAPI.imagePredict().modelId(modelId).dataUrl(dataUrl).call()
+        return ivisionAPI.imagePredict().signer(_aliSigner).modelId(modelId).dataUrl(dataUrl).call()
                 .map(resp -> {
                     if (resp.getImagePredict().getStatus().equals("Success")) {
                         return JSON.parseObject(resp.getImagePredict().getPredictResult(),
@@ -255,13 +258,6 @@ public class DemoController /* implements MBeanRegisterAware */ {
                         return resp;
                     }
                 });
-    }
-
-    Transformer<Interact, Interact> alisign() {
-        return interacts -> _finder.find(AliyunSigner.class).flatMap(signer -> {
-            LOG.info("alisign: sign by {}", signer);
-            return interacts.compose(signer);
-        });
     }
 
     @Path("wx/qrcode")
@@ -683,14 +679,13 @@ public class DemoController /* implements MBeanRegisterAware */ {
             }};
     }
 
+    @Inject
+    LbsyunSigner _lbsyunSigner;
+
     @Path("ipv2")
     public Observable<PositionResponse>  getCityByIpV2(@QueryParam("ip") final String ip,
-            @RpcFacade({"lbsyun_signer"}) final LbsyunAPI lbsyun) {
-        return lbsyun.ip2position().ip(ip).call();
-    }
-
-    Transformer<Interact, Interact> lbsyunsign() {
-        return interacts -> _finder.find(LbsyunSigner.class).flatMap(signer -> interacts.doOnNext(signer));
+            @RpcFacade final LbsyunAPI lbsyun) {
+        return lbsyun.ip2position().signer(_lbsyunSigner).ip(ip).call();
     }
 
     @SuppressWarnings("unchecked")
