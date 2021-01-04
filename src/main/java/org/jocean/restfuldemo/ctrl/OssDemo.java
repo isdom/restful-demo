@@ -67,7 +67,7 @@ public class OssDemo {
             @QueryParam("symlink") final String symlink
             ) {
         return oss.getSymlink()
-//                .signer(_stsc.ossSigner())
+                .signer(_stsc.ossSigner())
                 .bucket(_bucket)
                 .symlinkObject(symlink)
                 .call();
@@ -79,7 +79,7 @@ public class OssDemo {
             @QueryParam("target") final String target
             ) {
         return oss.putSymlink()
-//            .signer(_stsc.ossSigner())
+            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .symlinkObject(symlink)
             .targetObject(target)
@@ -103,8 +103,6 @@ public class OssDemo {
                     return e.getMessage();
                 }
             })
-//            .doOnError( e -> LOG.warn("error when delobj, detail: {}", ((OssException)e).error()))
-//            .onErrorReturn(e -> ((OssException)e).error().toString())
             ;
     }
 
@@ -157,7 +155,7 @@ public class OssDemo {
             @QueryParam("obj") final String objname
             ) {
         return oss.getObjectMeta()
-//            .signer(_stsc.ossSigner())
+            .signer(_stsc.ossSigner())
             .bucket(_bucket)
             .object(objname)
             .call()
