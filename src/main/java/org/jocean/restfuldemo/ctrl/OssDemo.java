@@ -93,7 +93,7 @@ public class OssDemo {
             .bucket(_bucket)
             .object(object)
             .call()
-            .<Object>map(fullresp -> fullresp)
+            .<Object>map(resp -> resp.toString())
             .onErrorReturn(e -> {
                 if (e instanceof OssException) {
                     LOG.warn("error when copyobj, detail: {}", ((OssException)e).error());
@@ -175,7 +175,7 @@ public class OssDemo {
                 .object(_uploadPath + "/" + UUID.randomUUID().toString().replaceAll("-", ""))
                 .body(getbody)
                 .call()
-                .map(result -> result.toString()))
+                .map(resp -> resp.toString()))
                 .doOnError( e -> LOG.warn("error when uploadNew, detail: {}", ((OssException)e).error()))
                 .onErrorReturn(e -> ((OssException)e).error().toString())
                 ;
