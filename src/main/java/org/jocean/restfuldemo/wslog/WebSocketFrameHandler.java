@@ -52,9 +52,7 @@ public class WebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocket
     @Override
     protected void channelRead0(final ChannelHandlerContext ctx, final WebSocketFrame frame) throws Exception {
         // ping and pong frames already handled
-        if ( !isOutputEnabled(ctx)) {
-            enableOutput(ctx);
-        }
+        enableOutput(ctx);
 
         if (frame instanceof TextWebSocketFrame) {
             // Send the uppercase string back.
@@ -71,7 +69,7 @@ public class WebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocket
     }
 
     private void enableOutput(final ChannelHandlerContext ctx) {
-        if (isOutputEnabled(ctx)) {
+        if (!isOutputEnabled(ctx)) {
             final OutputBytes output = bytes -> {
                 if (null != bytes && ctx.channel().isActive()) {
                     ctx.channel().writeAndFlush(new TextWebSocketFrame(new String(bytes)));
