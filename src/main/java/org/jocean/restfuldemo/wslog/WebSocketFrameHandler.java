@@ -69,8 +69,9 @@ public class WebSocketFrameHandler extends SimpleChannelInboundHandler<WebSocket
         if (null == ctx.channel().attr(OUTPUT).get()) {
             final OutputBytes output = bytes -> {
                 if (null != bytes && ctx.channel().isActive()) {
-                    ctx.write(ctx.alloc().buffer(bytes.length).writeBytes(bytes));
-                    ctx.flush();
+                    ctx.channel().writeAndFlush(new TextWebSocketFrame(new String(bytes)));
+//                    ctx.write(ctx.alloc().buffer(bytes.length).writeBytes(bytes));
+//                    ctx.flush();
                 }
             };
             ctx.channel().attr(OUTPUT).set(output);
