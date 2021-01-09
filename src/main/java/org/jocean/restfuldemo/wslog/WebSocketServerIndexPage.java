@@ -39,7 +39,7 @@ public final class WebSocketServerIndexPage {
                 "  socket = new WebSocket(\"" + webSocketLocation + "\");" + NEWLINE +
                 "  socket.onmessage = function(event) {" + NEWLINE +
                 "    var ta = document.getElementById('responseText');" + NEWLINE +
-                "    ta.value = ta.value + '\\n' + event.data" + NEWLINE +
+                "    ta.value = ta.value + event.data" + NEWLINE +
                 "  };" + NEWLINE +
                 "  socket.onopen = function(event) {" + NEWLINE +
                 "    var ta = document.getElementById('responseText');" + NEWLINE +
