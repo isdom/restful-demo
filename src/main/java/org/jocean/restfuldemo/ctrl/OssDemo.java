@@ -43,10 +43,10 @@ public class OssDemo {
 
     @Inject
     @Named("ossbucket-${oss.bucket}")
-    private OssBucket _bucket;
+    OssBucket _bucket;
 
     @Value("${upload.path}")
-    private String _uploadPath;
+    String _uploadPath;
 
     @RpcFacade
     OssAPI oss;

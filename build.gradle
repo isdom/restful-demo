@@ -45,5 +45,6 @@ dependencies {
     
     compile 'com.hynnet:jxl:2.6.12.1'
 
-    testCompile "junit:junit:4.12"
+    testCompile 'org.jmockit:jmockit:1.49'
+    testCompile 'junit:junit:4.12'
 }
