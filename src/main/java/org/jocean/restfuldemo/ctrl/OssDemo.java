@@ -63,7 +63,7 @@ public class OssDemo {
 
     @Path("oss/getobj")
     @OnError({
-        "org.jocean.restfuldemo.ctrl.OssDemo.handleOssError"
+        "org.jocean.restfuldemo.ctrl.OssDemo.handleOssException"
         ,"org.jocean.restfuldemo.ctrl.OssDemo.handleAllError"
         })
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
