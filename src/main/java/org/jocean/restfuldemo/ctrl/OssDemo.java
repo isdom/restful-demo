@@ -17,6 +17,7 @@ import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.ResponseUtil;
+import org.jocean.svr.annotation.OnError;
 import org.jocean.svr.annotation.RpcFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,16 +51,27 @@ public class OssDemo {
     @RpcFacade
     OssAPI oss;
 
+    static String handleOssException(final OssException osserror) {
+        LOG.warn("oss error when getobj, detail: {}", osserror.error());
+        return osserror.error().toString();
+    }
+
+    static String handleAllError(final Exception e) {
+        LOG.warn("error when getobj, detail: {}", e);
+        return ExceptionUtils.exception2detail(e);
+    }
+
     @Path("oss/getobj")
+    @OnError({
+        "org.jocean.restfuldemo.ctrl.handleOssError"
+        ,"org.jocean.restfuldemo.ctrl.handleAllError"
+        })
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
         return oss.getObject()
                 .signer(_stsc.ossSigner())
                 .bucket(_bucket)
                 .object(object)
-                .call()
-                .<Object>map(fullresp -> fullresp)
-                .doOnError( e -> LOG.warn("error when getobj, detail: {}", ((OssException)e).error()))
-                .onErrorReturn(e -> ((OssException)e).error().toString());
+                .call();
     }
 
     @Path("oss/getslink")
