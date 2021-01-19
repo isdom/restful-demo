@@ -51,20 +51,22 @@ public class OssDemo {
     @RpcFacade
     OssAPI oss;
 
-    static String handleOssException(final OssException osserror) {
+    String handleOssException(final OssException osserror) {
         LOG.warn("oss error when getobj, detail: {}", osserror.error());
         return osserror.error().toString();
     }
 
-    static String handleAllError(final Exception e) {
+    String handleAllError(final Exception e) {
         LOG.warn("error when getobj, detail: {}", e);
         return ExceptionUtils.exception2detail(e);
     }
 
     @Path("oss/getobj")
     @OnError({
-        "org.jocean.restfuldemo.ctrl.OssDemo.handleOssException"
-        ,"org.jocean.restfuldemo.ctrl.OssDemo.handleAllError"
+//        "org.jocean.restfuldemo.ctrl.OssDemo.handleOssException"
+//        ,"org.jocean.restfuldemo.ctrl.OssDemo.handleAllError"
+        "this.handleOssException"
+        ,"this.handleAllError"
         })
     public Observable<? extends Object> getobj(@QueryParam("obj") final String object) {
         return oss.getObject()
