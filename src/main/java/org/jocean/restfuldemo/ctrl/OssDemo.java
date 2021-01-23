@@ -51,8 +51,8 @@ public class OssDemo {
     @RpcFacade
     OssAPI oss;
 
-    String handleAllError(final Exception e) {
-        LOG.warn("error when getobj, detail: {}", e);
+    String handleAllError(final Exception e, final HttpRequest req) {
+        LOG.warn("error when {}, detail: {}", req.uri(), e);
         return ExceptionUtils.exception2detail(e);
     }
 
