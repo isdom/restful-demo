@@ -13,6 +13,6 @@ public class ErrorHandler {
 
     String handleOssException(final OssException osserror, final HttpRequest req) {
         LOG.warn("handle oss error when {}, detail: {}", req.uri(), osserror.error());
-        return osserror.error().toString();
+        return "handle oss error when " + req.uri() + "{\n" + osserror.error().toString() + "\n}";
     }
 }

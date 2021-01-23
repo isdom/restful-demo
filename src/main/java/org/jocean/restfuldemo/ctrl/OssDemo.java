@@ -53,7 +53,7 @@ public class OssDemo {
 
     String handleAllError(final Exception e, final HttpRequest req) {
         LOG.warn("error when {}, detail: {}", req.uri(), e);
-        return ExceptionUtils.exception2detail(e);
+        return "error when " + req.uri() + "{\n" + ExceptionUtils.exception2detail(e) + "\n}";
     }
 
     @Path("oss/getobj")
