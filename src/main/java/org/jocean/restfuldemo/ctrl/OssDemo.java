@@ -17,6 +17,7 @@ import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.ResponseUtil;
+import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
 import org.jocean.svr.annotation.RpcFacade;
 import org.slf4j.Logger;
@@ -51,7 +52,8 @@ public class OssDemo {
     @RpcFacade
     OssAPI oss;
 
-    String handleAllError(final Exception e, final HttpRequest req) {
+    @HandleError(Exception.class)
+    String handleAllError(final HttpRequest req, final Exception e) {
         LOG.warn("error when {}, detail: {}", req.uri(), e);
         return "error when " + req.uri() + "{\n" + ExceptionUtils.exception2detail(e) + "\n}";
     }
