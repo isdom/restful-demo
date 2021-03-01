@@ -19,7 +19,7 @@ dependencies {
     compile 'org.jocean:jocean-http:0.0.3-SNAPSHOT'
     compile 'org.jocean:jocean-j2se:0.0.4-SNAPSHOT'
     compile 'org.jocean:jocean-jdmk:0.0.2'
-    compile 'org.jocean:jocean-svr:0.0.1-SNAPSHOT'
+    compile 'org.jocean:jocean-svr:0.0.2-SNAPSHOT'
     
     compile('org.jocean:jocean-aliyun:0.0.1-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-wechat:0.0.1-SNAPSHOT') { transitive = false }
