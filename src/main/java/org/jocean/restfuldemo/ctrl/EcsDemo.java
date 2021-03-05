@@ -75,7 +75,11 @@ public class EcsDemo {
             @QueryParam("instance") final String instanceId,
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/stopInstance with instanceId:{}/force:{}", instanceId, force);
-        return ecs.stopInstance().instanceId(instanceId).forceStop(force).call();
+        return ecs.stopInstance()
+                .signer(_stsc.aliSigner())
+                .instanceId(instanceId)
+                .forceStop(force)
+                .call();
     }
 
     @Path("ecs/deleteInstance")
@@ -84,6 +88,7 @@ public class EcsDemo {
             @QueryParam("force") final boolean force) {
         LOG.info("call ecs/deleteInstance with instanceId:{}/force:{}", instanceId, force);
         return ecs.deleteInstance()
+                .signer(_stsc.aliSigner())
                 .instanceId(instanceId)
                 .force(force)
                 .call();
@@ -92,7 +97,9 @@ public class EcsDemo {
     @Path("ecs/startInstance")
     public Observable<? extends Object> startInstance(
             @QueryParam("instance") final String instanceId) {
-        return ecs.startInstance().instanceId(instanceId).call();
+        return ecs.startInstance()
+                .signer(_stsc.aliSigner())
+                .instanceId(instanceId).call();
     }
 
     /*
@@ -144,10 +151,11 @@ public class EcsDemo {
             @QueryParam("instanceType") final String instanceType
             ) {
         return ecs.describeSpotPriceHistory()
-                    .regionId(regionId)
-                    .instanceType(instanceType)
-                    .networkType("vpc")
-                    .call();
+                .signer(_stsc.aliSigner())
+                .regionId(regionId)
+                .instanceType(instanceType)
+                .networkType("vpc")
+                .call();
     }
 
     @Path("ecs/describeInstances")
@@ -157,10 +165,11 @@ public class EcsDemo {
             @QueryParam("instancename") final String instanceName
             ) {
         return ecs.describeInstances()
-                    .regionId(regionId)
-                    .vpcId(vpcId)
-                    .instanceName(instanceName)
-                    .call();
+                .signer(_stsc.aliSigner())
+                .regionId(regionId)
+                .vpcId(vpcId)
+                .instanceName(instanceName)
+                .call();
     }
 
     @Path("ecs/describeInstanceStatus")
@@ -184,9 +193,10 @@ public class EcsDemo {
             @QueryParam("instance") final String instance,
             @QueryParam("region") final String regionId) {
         return ecs.describeUserData()
-                    .instanceId(instance)
-                    .regionId(regionId)
-                    .call();
+                .signer(_stsc.aliSigner())
+                .instanceId(instance)
+                .regionId(regionId)
+                .call();
     }
 
     @Path("ecs/describeInstanceRamRole")
@@ -197,7 +207,9 @@ public class EcsDemo {
             @QueryParam("pageidx") final String pageidx,
             @QueryParam("pagesize") final String pagesize
             ) {
-        final DescribeInstanceRamRoleBuilder builder = ecs.describeInstanceRamRole().regionId(regionId);
+        final DescribeInstanceRamRoleBuilder builder = ecs.describeInstanceRamRole()
+                .signer(_stsc.aliSigner())
+                .regionId(regionId);
 
         if (null != instances) {
             builder.instanceIds(instances);
