@@ -99,7 +99,17 @@ public class EcsDemo {
             @QueryParam("instance") final String instanceId) {
         return ecs.startInstance()
                 .signer(_stsc.aliSigner())
-                .instanceId(instanceId).call();
+                .instanceId(instanceId)
+                .call();
+    }
+
+    @Path("ecs/rebootInstance")
+    public Observable<? extends Object> rebootInstance(
+            @QueryParam("instance") final String instanceId) {
+        return ecs.rebootInstance()
+                .signer(_stsc.aliSigner())
+                .instanceId(instanceId)
+                .call();
     }
 
     /*
