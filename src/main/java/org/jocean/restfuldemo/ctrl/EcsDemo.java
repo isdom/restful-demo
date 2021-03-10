@@ -112,6 +112,20 @@ public class EcsDemo {
                 .call();
     }
 
+    @Path("ecs/renewInstance")
+    public Observable<? extends Object> renewInstance(
+            @QueryParam("instance") final String instanceId,
+            @QueryParam("period") final int period,
+            @QueryParam("periodUnit") final String periodUnit
+            ) {
+        return ecs.renewInstance()
+                .signer(_stsc.aliSigner())
+                .instanceId(instanceId)
+                .period(period)
+                .periodUnit(periodUnit)
+                .call();
+    }
+
     /*
     @Path("ecs/createInstance")
     public Observable<? extends Object> createInstance(
