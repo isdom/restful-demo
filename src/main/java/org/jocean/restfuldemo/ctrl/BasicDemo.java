@@ -36,9 +36,7 @@ public class BasicDemo {
 
     @Path("basic/testcookie")
     @OnError({
-//        "org.jocean.restfuldemo.ctrl.OssDemo.handleOssException"
-//        ,"org.jocean.restfuldemo.ctrl.OssDemo.handleAllError"
-        "org.jocean.restfuldemo.ctrl.ErrorHandler.handleOssException"
+        "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
         ,"this.handleAllError"
         })
     public Object testcookie(@CookieParam("hello") final String hello,
