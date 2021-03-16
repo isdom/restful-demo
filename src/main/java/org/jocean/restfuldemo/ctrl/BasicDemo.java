@@ -7,6 +7,8 @@ import javax.ws.rs.Path;
 
 import org.jocean.http.WriteCtrl;
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.svr.MutableResponseBean;
+import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
 import org.slf4j.Logger;
@@ -34,12 +36,12 @@ public class BasicDemo {
         return "error when " + req.uri() + "{\n" + ExceptionUtils.exception2detail(e) + "\n}";
     }
 
-    @Path("basic/testcookie")
+    @Path("basic/testcookie1")
     @OnError({
         "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
         ,"this.handleAllError"
         })
-    public Object testcookie(@CookieParam("hello") final String hello,
+    public Object testcookie1(@CookieParam("hello") final String hello,
             final WriteCtrl writeCtrl) {
         if (null == hello || hello.isEmpty()) {
             writeCtrl.sending().subscribe( obj -> {
@@ -57,4 +59,26 @@ public class BasicDemo {
         return "world";
     }
 
+    @Path("basic/testcookie2")
+    @OnError({
+        "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
+        ,"this.handleAllError"
+        })
+    public Object testcookie2(@CookieParam("hello") final String hello) {
+        if (null == hello || hello.isEmpty()) {
+            final MutableResponseBean resp = ResponseUtil.response();
+
+            final Cookie cookie = new DefaultCookie("hello", UUID.randomUUID().toString());
+            cookie.setPath("/");
+            final String cookieStr = ServerCookieEncoder.STRICT.encode(cookie);
+
+            resp.setStatus(200);
+            resp.withHeader().setHeader(HttpHeaderNames.SET_COOKIE.toString(), cookieStr);
+
+            return resp;
+        } else {
+            LOG.info("Cookie (hello) has set, value {}", hello);
+            return "world";
+        }
+    }
 }
