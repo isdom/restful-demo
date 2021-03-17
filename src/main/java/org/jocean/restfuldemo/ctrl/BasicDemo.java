@@ -3,6 +3,7 @@ package org.jocean.restfuldemo.ctrl;
 import java.util.UUID;
 
 import javax.ws.rs.CookieParam;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 
 import org.jocean.http.WriteCtrl;
@@ -74,6 +75,31 @@ public class BasicDemo {
 
             resp.setStatus(200);
             resp.withHeader().setHeader(HttpHeaderNames.SET_COOKIE.toString(), cookieStr);
+
+            return resp;
+        } else {
+            LOG.info("Cookie (hello) has set, value {}", hello);
+            return "world";
+        }
+    }
+
+    static class Response {
+        @HeaderParam("set-cookie")
+        String cookie;
+    }
+
+    @Path("basic/testcookie3")
+    @OnError({
+        "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
+        ,"this.handleAllError"
+        })
+    public Object testcookie3(@CookieParam("hello") final String hello) {
+        if (null == hello || hello.isEmpty()) {
+            final Response resp = new Response();
+
+            final Cookie cookie = new DefaultCookie("hello", UUID.randomUUID().toString());
+            cookie.setPath("/");
+            resp.cookie = ServerCookieEncoder.STRICT.encode(cookie);
 
             return resp;
         } else {
