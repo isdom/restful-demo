@@ -107,4 +107,27 @@ public class BasicDemo {
             return "world";
         }
     }
+
+    static class Response2 {
+        @CookieParam("hello")
+        String cookie;
+    }
+
+    @Path("basic/testcookie4")
+    @OnError({
+        "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
+        ,"this.handleAllError"
+        })
+    public Object testcookie4(@CookieParam("hello") final String hello) {
+        if (null == hello || hello.isEmpty()) {
+            final Response2 resp = new Response2();
+
+            resp.cookie = UUID.randomUUID().toString();
+
+            return resp;
+        } else {
+            LOG.info("Cookie (hello) has set, value {}", hello);
+            return "world";
+        }
+    }
 }
