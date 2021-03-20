@@ -130,4 +130,33 @@ public class BasicDemo {
             return "world";
         }
     }
+
+    static class Response3 {
+        @CookieParam("cookie1")
+        String cookie1;
+
+        @CookieParam("cookie2")
+        String cookie2;
+    }
+
+    @Path("basic/testcookie5")
+    @OnError({
+        "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
+        ,"this.handleAllError"
+        })
+    public Object testcookie5(
+            @CookieParam("cookie1") final String cookie1,
+            @CookieParam("cookie2") final String cookie2) {
+
+        final Response3 resp = new Response3();
+
+        if (null == cookie1 || cookie1.isEmpty()) {
+            resp.cookie1 = UUID.randomUUID().toString();
+        }
+
+        if (null == cookie2 || cookie2.isEmpty()) {
+            resp.cookie2 = UUID.randomUUID().toString();
+        }
+        return resp;
+    }
 }
