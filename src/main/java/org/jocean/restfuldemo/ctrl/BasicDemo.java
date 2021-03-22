@@ -152,11 +152,16 @@ public class BasicDemo {
 
         if (null == cookie1 || cookie1.isEmpty()) {
             resp.cookie1 = UUID.randomUUID().toString();
+        } else {
+            LOG.info("Cookie (cookie1) has set, value {}", cookie1);
         }
 
         if (null == cookie2 || cookie2.isEmpty()) {
             resp.cookie2 = UUID.randomUUID().toString();
+        } else {
+            LOG.info("Cookie (cookie2) has set, value {}", cookie2);
         }
+
         return resp;
     }
 
@@ -181,13 +186,18 @@ public class BasicDemo {
 
         if (null == cookie1 || cookie1.isEmpty()) {
             resp.cookie1 = UUID.randomUUID().toString();
+        } else {
+            LOG.info("Cookie (cookie1) has set, value {}", cookie1);
         }
 
         if (null == cookie2 || cookie2.isEmpty()) {
             final Cookie cookie = new DefaultCookie("cookie2", UUID.randomUUID().toString());
             cookie.setPath("/");
             resp.cookie2 = ServerCookieEncoder.STRICT.encode(cookie);
+        } else {
+            LOG.info("Cookie (cookie2) has set, value {}", cookie2);
         }
+
         return resp;
     }
 }
