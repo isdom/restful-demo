@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
+import rx.Observable;
 
 
 @Path("/newrest/")
@@ -199,5 +200,27 @@ public class BasicDemo {
         }
 
         return resp;
+    }
+
+    @Path("basic/stream")
+    @OnError({
+        "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
+        ,"this.handleAllError"
+        })
+    public Observable<String> teststream() {
+        return Observable.unsafeCreate(subscriber -> {
+            subscriber.onNext("hello,");
+            try {
+                Thread.sleep(1000);
+            } catch (final InterruptedException e) {
+            }
+            subscriber.onNext("world");
+            try {
+                Thread.sleep(1000);
+            } catch (final InterruptedException e) {
+            }
+            subscriber.onNext("!");
+            subscriber.onCompleted();
+        });
     }
 }
