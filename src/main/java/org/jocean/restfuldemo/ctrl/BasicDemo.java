@@ -208,7 +208,10 @@ public class BasicDemo {
         "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
         ,"this.handleAllError"
         })
-    public Observable<String> teststream() {
+    public Observable<String> teststream(final WriteCtrl ctrl) {
+
+        ctrl.setFlushPerWrite(true);
+
         return Observable.unsafeCreate(subscriber -> {
             subscriber.onNext("hello,");
 
