@@ -1,6 +1,7 @@
 package org.jocean.restfuldemo.ctrl;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.CookieParam;
 import javax.ws.rs.HeaderParam;
@@ -210,17 +211,16 @@ public class BasicDemo {
     public Observable<String> teststream() {
         return Observable.unsafeCreate(subscriber -> {
             subscriber.onNext("hello,");
-            try {
-                Thread.sleep(1000);
-            } catch (final InterruptedException e) {
-            }
-            subscriber.onNext("world");
-            try {
-                Thread.sleep(1000);
-            } catch (final InterruptedException e) {
-            }
-            subscriber.onNext("!");
-            subscriber.onCompleted();
+
+            Observable.timer(1, TimeUnit.SECONDS).subscribe(any -> {
+                    subscriber.onNext("world");
+                    Observable.timer(1, TimeUnit.SECONDS).subscribe(any2 -> {
+                        subscriber.onNext("!");
+                        subscriber.onCompleted();
+                    }
+                );
+                }
+            );
         });
     }
 }
