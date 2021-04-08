@@ -216,10 +216,10 @@ public class BasicDemo {
             LOG.debug("app: hello,");
             subscriber.onNext("hello,");
 
-            Observable.timer(1, TimeUnit.SECONDS).subscribe(any -> {
+            Observable.timer(10, TimeUnit.SECONDS).subscribe(any -> {
                 LOG.debug("app: world");
                     subscriber.onNext("world");
-                    Observable.timer(1, TimeUnit.SECONDS).subscribe(any2 -> {
+                    Observable.timer(10, TimeUnit.SECONDS).subscribe(any2 -> {
                         LOG.debug("app: !");
                         subscriber.onNext("!");
 
