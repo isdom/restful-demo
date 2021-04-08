@@ -213,12 +213,17 @@ public class BasicDemo {
         ctrl.setFlushPerWrite(true);
 
         return Observable.unsafeCreate(subscriber -> {
+            LOG.debug("app: hello,");
             subscriber.onNext("hello,");
 
             Observable.timer(1, TimeUnit.SECONDS).subscribe(any -> {
+                LOG.debug("app: world");
                     subscriber.onNext("world");
                     Observable.timer(1, TimeUnit.SECONDS).subscribe(any2 -> {
+                        LOG.debug("app: !");
                         subscriber.onNext("!");
+
+                        LOG.debug("app: (end)");
                         subscriber.onCompleted();
                     }
                 );
