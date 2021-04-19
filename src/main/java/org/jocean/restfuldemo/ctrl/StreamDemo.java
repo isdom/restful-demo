@@ -86,7 +86,7 @@ public class StreamDemo {
 
             @Override
             public void onSubscriber(final Subscriber<String> subscriber) {
-                Observable.timer(1, TimeUnit.SECONDS).subscribe(any ->  subscriber.onNext(cnt.addAndGet(1) + ", hello"));
+                Observable.timer(1, TimeUnit.SECONDS).subscribe(any ->  subscriber.onNext(cnt.addAndGet(1) + ", hello\n"));
             }
 
             @Override
