@@ -6,7 +6,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.ws.rs.Path;
+import javax.ws.rs.QueryParam;
 
+import org.jocean.http.WriteCtrl;
+import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.WithStream;
 import org.jocean.svr.WithSubscriber;
@@ -78,7 +81,11 @@ public class StreamDemo {
         "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
         ,"this.handleAllError"
         })
-    public WithStream endless() {
+    public WithStream endless(final WriteCtrl ctrl, @QueryParam("dispose") final boolean isDispose) {
+        if (isDispose) {
+            ctrl.sended().subscribe(obj -> DisposableWrapperUtil.dispose(obj));
+        }
+
         final AtomicInteger cnt = new AtomicInteger(0);
         return new WithStream() {
 
@@ -96,6 +103,8 @@ public class StreamDemo {
 
                         final PooledByteBufAllocatorMetric allocatorMetric = PooledByteBufAllocator.DEFAULT.metric();
                         sctx.chunkDataOutput().writeUTF(Long.toString(allocatorMetric.directArenas().get(0).numActiveAllocations()));
+                        sctx.chunkDataOutput().writeUTF("\n");
+
                         sctx.chunkReady();
 
                     } catch (final IOException e) {
