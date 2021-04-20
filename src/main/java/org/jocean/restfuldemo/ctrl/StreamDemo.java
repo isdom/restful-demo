@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.ws.rs.Path;
 
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.svr.WithStream;
 import org.jocean.svr.WithSubscriber;
 import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
@@ -18,6 +19,8 @@ import org.springframework.stereotype.Controller;
 
 import com.google.common.base.Charsets;
 
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocatorMetric;
 import io.netty.handler.codec.http.HttpRequest;
 import rx.Observable;
 import rx.Subscriber;
@@ -75,9 +78,9 @@ public class StreamDemo {
         "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
         ,"this.handleAllError"
         })
-    public WithSubscriber<String> endless() {
+    public WithStream endless() {
         final AtomicInteger cnt = new AtomicInteger(0);
-        return new WithSubscriber<String>() {
+        return new WithStream() {
 
             @Override
             public String contentType() {
@@ -85,19 +88,19 @@ public class StreamDemo {
             }
 
             @Override
-            public void onSubscriber(final Subscriber<String> subscriber) {
-                Observable.timer(1, TimeUnit.SECONDS).subscribe(any ->  subscriber.onNext(cnt.addAndGet(1) + ", hello\n"));
-            }
-
-            @Override
-            public Action2<String, OutputStream> output() {
-                return (s, out) -> {
+            public void onStream(final StreamContext sctx) {
+                Observable.timer(1, TimeUnit.SECONDS).subscribe(any -> {
                     try {
-                        out.write(s.getBytes(Charsets.UTF_8));
+                        sctx.chunkDataOutput().writeUTF(Integer.toString(cnt.addAndGet(1)));
+                        sctx.chunkDataOutput().writeUTF(",");
+
+                        final PooledByteBufAllocatorMetric allocatorMetric = PooledByteBufAllocator.DEFAULT.metric();
+                        sctx.chunkDataOutput().writeUTF(Long.toString(allocatorMetric.directArenas().get(0).numActiveAllocations()));
+                        sctx.chunkReady();
+
                     } catch (final IOException e) {
                     }
-                };
+                });
             }};
     }
-
 }
