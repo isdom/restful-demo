@@ -1,7 +1,6 @@
 package org.jocean.restfuldemo.ctrl;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -12,7 +11,6 @@ import org.jocean.http.WriteCtrl;
 import org.jocean.idiom.DisposableWrapperUtil;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.WithStream;
-import org.jocean.svr.WithSubscriber;
 import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
 import org.slf4j.Logger;
@@ -20,14 +18,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
-import com.google.common.base.Charsets;
-
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocatorMetric;
 import io.netty.handler.codec.http.HttpRequest;
 import rx.Observable;
-import rx.Subscriber;
-import rx.functions.Action2;
 
 
 @Path("/newrest/")
@@ -47,9 +41,9 @@ public class StreamDemo {
         "org.jocean.restfuldemo.ctrl.ErrorHandler.handleException"
         ,"this.handleAllError"
         })
-    public WithSubscriber<String> string1() {
+    public WithStream string1() {
         final AtomicInteger cnt = new AtomicInteger(0);
-        return new WithSubscriber<String>() {
+        return new WithStream() {
 
             @Override
             public String contentType() {
@@ -57,22 +51,16 @@ public class StreamDemo {
             }
 
             @Override
-            public void onSubscriber(final Subscriber<String> subscriber) {
+            public void onStream(final StreamContext sctx) {
                 if (cnt.get() < 10) {
-                    subscriber.onNext(cnt.addAndGet(1) + ", hello");
-                } else {
-                    subscriber.onCompleted();
-                }
-            }
-
-            @Override
-            public Action2<String, OutputStream> output() {
-                return (s, out) -> {
                     try {
-                        out.write(s.getBytes(Charsets.UTF_8));
+                        sctx.chunkDataOutput().writeUTF(cnt.addAndGet(1) + ", hello");
                     } catch (final IOException e) {
                     }
-                };
+                    sctx.chunkReady();
+                } else {
+                    sctx.streamCompleted();
+                }
             }};
     }
 
