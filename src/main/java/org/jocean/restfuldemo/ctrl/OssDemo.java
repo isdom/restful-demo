@@ -1,5 +1,10 @@
 package org.jocean.restfuldemo.ctrl;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.UUID;
 
 import javax.inject.Inject;
@@ -15,7 +20,9 @@ import org.jocean.aliyun.sts.STSCredentials;
 import org.jocean.http.DoFlush;
 import org.jocean.http.FullMessage;
 import org.jocean.http.MessageBody;
+import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.netty.util.BufsInputStream;
 import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
@@ -26,6 +33,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
+import com.google.common.io.ByteStreams;
+
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpUtil;
@@ -196,5 +206,33 @@ public class OssDemo {
         return HttpUtil.is100ContinueExpected(request)
             ? Observable.<Object>just(ResponseUtil.response().setStatus(100), DoFlush.Util.flushOnly())
             : Observable.empty();
+    }
+
+    @Path("oss/upload2file")
+    @POST
+    public Observable<Object> upload2file(final Observable<MessageBody> getbody) throws FileNotFoundException {
+        final BufsInputStream<DisposableWrapper<? extends ByteBuf>> is =
+                new BufsInputStream<>(dwb -> dwb.unwrap(), dwb -> dwb.dispose());
+        final OutputStream os = new FileOutputStream(new File("/tmp/demo.dat"));
+
+        return getbody.flatMap(body -> body.content().doOnNext(bbs -> {
+                            try {
+                                is.appendIterable(bbs.element());
+                                is.markEOS();
+                                ByteStreams.copy(is, os);
+                            } catch (final IOException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            } finally {
+                                bbs.step();
+                            }
+                        }).doOnCompleted(() -> {
+                            try {
+                                os.close();
+                                // using File ==> "/tmp/demo.dat"
+                            } catch (final IOException e) {
+                                e.printStackTrace();
+                            }
+                        }));
     }
 }

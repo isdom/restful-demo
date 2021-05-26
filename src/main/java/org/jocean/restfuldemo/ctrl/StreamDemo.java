@@ -54,7 +54,7 @@ public class StreamDemo {
             public void onStream(final StreamContext sctx) {
                 if (cnt.get() < 10) {
                     try {
-                        sctx.chunkDataOutput().writeUTF(cnt.addAndGet(1) + ", hello");
+                        sctx.chunkDataOutput().writeUTF(cnt.addAndGet(1) + ", hello\n");
                     } catch (final IOException e) {
                     }
                     sctx.chunkReady();
