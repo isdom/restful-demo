@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.util.internal.PlatformDependent;
 import rx.Observable;
 
 
@@ -38,13 +39,21 @@ public class WXDemo {
         return "error when " + req.uri() + "{\n" + ExceptionUtils.exception2detail(e) + "\n}";
     }
 
+    /**
+    *
+    * @return a newly generated Delimiter (either for DATA or MIXED)
+    */
+   private static String getNewMultipartDelimiter() {
+       // construct a generated delimiter
+       return Long.toHexString(PlatformDependent.threadLocalRandom().nextLong());
+   }
+
     @Path("wx/img_sec_check")
     @POST
     public Observable<Object> ImgSecCheck(
             @QueryParam("access_token") final String access_token,
             @QueryParam("filename") final String filename,
             @QueryParam("name") final String name,
-            @QueryParam("boundary") final String boundary,
             @QueryParam("mime") final String mime,
             @HeaderParam("content-length") final int contentLength,
             final Observable<MessageBody> getbody,
@@ -53,6 +62,7 @@ public class WXDemo {
 //        final BufsInputStream<DisposableWrapper<? extends ByteBuf>> is =
 //                new BufsInputStream<>(dwb -> dwb.unwrap(), dwb -> dwb.dispose());
 
+        final String boundary = getNewMultipartDelimiter();
         return getbody.flatMap(body -> {
                     final StringBuilder sb = new StringBuilder();
                     sb.append("--");
