@@ -59,9 +59,6 @@ public class WXDemo {
             final Observable<MessageBody> getbody,
             final RpcExecutor rpc
             ) {
-//        final BufsInputStream<DisposableWrapper<? extends ByteBuf>> is =
-//                new BufsInputStream<>(dwb -> dwb.unwrap(), dwb -> dwb.dispose());
-
         final String boundary = getNewMultipartDelimiter();
         return getbody.flatMap(body -> {
                     final StringBuilder sb = new StringBuilder();
@@ -76,34 +73,9 @@ public class WXDemo {
                     final byte[] prefix = sb.toString().getBytes(Charsets.UTF_8);
                     final byte[] suffix = ("\r\n--" + boundary + "--\r\n").getBytes(Charsets.UTF_8);
 
-//                    final ContentEncoder to_formdata = new ContentEncoder() {
-//                        @Override
-//                        public String contentType() {
-//                            return "multipart/form-data; boundary=" + boundary;
-//                        }
-//                        @Override
-//                        public Action2<Object, OutputStream> encoder() {
-//                            return (bean, os) -> {
-//                                final byte[] bytes = (byte[])bean;
-//                                try {
-//                                    os.write(bytes);
-//                                } catch (final IOException e) {
-//                                    e.printStackTrace();
-//                                }
-//                            };
-//                        }};
-
-//                    DefaultHttpHeaders dhh = new DefaultHttpHeaders();
-
-//                    dhh.set("Host", host);
-//                    dhh.set("User-Agent", "curl/7.64.1");
-//                    dhh.set("Accept", "*/*");
-//                    dhh.set("Content-Length", prefix.length + contentLength + suffix.length);
-//                    dhh.set("Content-Type", contentType);
-//                    dhh.set("Expect", "100-continue");
-
                     return rpc.submit(inters -> inters.flatMap(interact ->
-                            interact.method(HttpMethod.POST)
+                            interact.oninitiator(initiator -> initiator.writeCtrl().writability().subscribe(isWritable -> LOG.info("ImgSecCheck==>writability:{}", isWritable) ))
+                            .method(HttpMethod.POST)
                             .uri("https://api.weixin.qq.com")
                             .path("/wxa/img_sec_check")
                             .paramAsQuery("access_token", access_token)
@@ -130,7 +102,6 @@ public class WXDemo {
                                             .concatWith(body.content())
                                             .concatWith(Observable.just(ByteBufSliceUtil.wrappedSlice(suffix)));
                                 }}))
-//                            .body(body, to_formdata)
                             .responseAs(WXProtocol.WXAPIResponse.class) ));
                 });
     }
