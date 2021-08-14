@@ -8,6 +8,7 @@ import javax.ws.rs.QueryParam;
 import org.jocean.http.ByteBufSlice;
 import org.jocean.http.MessageBody;
 import org.jocean.http.RpcExecutor;
+import org.jocean.http.TrafficCounter;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.annotation.HandleError;
@@ -74,7 +75,13 @@ public class WXDemo {
                     final byte[] suffix = ("\r\n--" + boundary + "--\r\n").getBytes(Charsets.UTF_8);
 
                     return rpc.submit(inters -> inters.flatMap(interact ->
-                            interact.oninitiator(initiator -> initiator.writeCtrl().writability().subscribe(isWritable -> LOG.info("ImgSecCheck==>writability:{}", isWritable) ))
+                            interact.oninitiator(initiator -> {
+                                initiator.writeCtrl().writability().subscribe(
+                                        isWritable -> LOG.info("ImgSecCheck==>writability:{}", isWritable) );
+                                final TrafficCounter counter = initiator.traffic();
+                                initiator.writeCtrl().sended().subscribe(any -> LOG.info("ImgSecCheck==>Traffic's outboundBytes:{}",
+                                        counter.outboundBytes()));
+                            })
                             .method(HttpMethod.POST)
                             .uri("https://api.weixin.qq.com")
                             .path("/wxa/img_sec_check")
