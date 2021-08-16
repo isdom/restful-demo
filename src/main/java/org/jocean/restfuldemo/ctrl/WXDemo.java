@@ -79,7 +79,10 @@ public class WXDemo {
                                 initiator.writeCtrl().writability().subscribe(
                                         isWritable -> LOG.info("ImgSecCheck==>writability:{}", isWritable) );
                                 final TrafficCounter counter = initiator.traffic();
-                                initiator.writeCtrl().sended().subscribe(any -> LOG.info("ImgSecCheck==>Traffic's in bytes:{}/out bytes:{}",
+                                initiator.writeCtrl().sending().subscribe(any -> LOG.info("ImgSecCheck:sending ==> in bytes:{}/out bytes:{}",
+                                        counter.inboundBytes(),
+                                        counter.outboundBytes()));
+                                initiator.writeCtrl().sended().subscribe(any -> LOG.info("ImgSecCheck:sended ==> in bytes:{}/out bytes:{}",
                                         counter.inboundBytes(),
                                         counter.outboundBytes()));
                             })
