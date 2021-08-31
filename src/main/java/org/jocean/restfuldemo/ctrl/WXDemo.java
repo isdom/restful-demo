@@ -76,9 +76,10 @@ public class WXDemo {
 
                     return rpc.submit(inters -> inters.flatMap(interact ->
                             interact.oninitiator(initiator -> {
-                                initiator.writeCtrl().writability().subscribe(
-                                        isWritable -> LOG.info("ImgSecCheck==>writability:{}", isWritable) );
                                 final TrafficCounter counter = initiator.traffic();
+                                initiator.writeCtrl().writability().subscribe(
+                                        isWritable -> LOG.info("ImgSecCheck==>writability:{}/in bytes:{}/out bytes:{}",
+                                                isWritable, counter.inboundBytes(), counter.outboundBytes()) );
                                 initiator.writeCtrl().sending().subscribe(any -> LOG.info("ImgSecCheck:sending ==> in bytes:{}/out bytes:{}",
                                         counter.inboundBytes(),
                                         counter.outboundBytes()));
