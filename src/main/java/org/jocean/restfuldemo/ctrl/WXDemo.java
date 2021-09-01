@@ -1,5 +1,7 @@
 package org.jocean.restfuldemo.ctrl;
 
+import java.util.function.Function;
+
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -12,6 +14,8 @@ import org.jocean.http.TrafficCounter;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.ByteBufSliceUtil;
 import org.jocean.svr.annotation.HandleError;
+import org.jocean.svr.annotation.JFinder;
+import org.jocean.wechat.AuthorizedMP;
 import org.jocean.wechat.WXProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,10 +53,13 @@ public class WXDemo {
        return Long.toHexString(PlatformDependent.threadLocalRandom().nextLong());
    }
 
+   @JFinder
+   Function<String, AuthorizedMP>  name2mp;
+
     @Path("wx/img_sec_check")
     @POST
     public Observable<Object> ImgSecCheck(
-            @QueryParam("access_token") final String access_token,
+            @QueryParam("appid") final String mp_appid,
             @QueryParam("filename") final String filename,
             @QueryParam("name") final String name,
             @QueryParam("mime") final String mime,
@@ -92,7 +99,7 @@ public class WXDemo {
                             .method(HttpMethod.POST)
                             .uri("https://api.weixin.qq.com")
                             .path("/wxa/img_sec_check")
-                            .paramAsQuery("access_token", access_token)
+                            .paramAsQuery("access_token", name2mp.apply(mp_appid).getAccessToken())
                             .body(Observable.<MessageBody>just(new MessageBody() {
 
                                 @Override
