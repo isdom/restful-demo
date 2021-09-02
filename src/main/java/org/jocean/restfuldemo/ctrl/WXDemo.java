@@ -62,7 +62,7 @@ public class WXDemo {
             @QueryParam("appid") final String mp_appid,
             @QueryParam("filename") final String filename,
             @QueryParam("name") final String name,
-            @QueryParam("mime") final String mime,
+            @HeaderParam("content-type") final String mime,
             @HeaderParam("content-length") final int contentLength,
             final Observable<MessageBody> getbody,
             final RpcExecutor rpc
