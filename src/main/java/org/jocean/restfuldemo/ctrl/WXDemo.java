@@ -81,7 +81,7 @@ public class WXDemo {
                     final byte[] prefix = sb.toString().getBytes(Charsets.UTF_8);
                     final byte[] suffix = ("\r\n--" + boundary + "--\r\n").getBytes(Charsets.UTF_8);
 
-                    LOG.info("ImgSecCheck==>content-length:{}", prefix.length + contentLength + suffix.length);
+                    LOG.info("ImgSecCheck==>content-type:{}/content-length:{}", mime, prefix.length + contentLength + suffix.length);
 
                     return rpc.submit(inters -> inters.flatMap(interact ->
                             interact.oninitiator(initiator -> {
