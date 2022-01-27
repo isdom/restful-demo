@@ -38,7 +38,7 @@ dependencies {
     
     compile "org.slf4j:jcl-over-slf4j:1.7.32"
     compile "org.slf4j:log4j-over-slf4j:1.7.32"
-    compile "ch.qos.logback:logback-classic:1.2.6"
+    compile "ch.qos.logback:logback-classic:1.2.10"
     
     compile 'commons-httpclient:commons-httpclient:3.1'
     compile 'org.apache.commons:commons-lang3:3.4'
