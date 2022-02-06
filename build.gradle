@@ -36,8 +36,8 @@ dependencies {
     compile 'com.netflix.hystrix:hystrix-metrics-event-stream:1.5.12'
     compile 'com.netflix.hystrix:hystrix-metrics-event-stream-jaxrs:1.5.12'
     
-    compile "org.slf4j:jcl-over-slf4j:1.7.32"
-    compile "org.slf4j:log4j-over-slf4j:1.7.32"
+    compile "org.slf4j:jcl-over-slf4j:1.7.35"
+    compile "org.slf4j:log4j-over-slf4j:1.7.35"
     compile "ch.qos.logback:logback-classic:1.2.10"
     
     compile 'commons-httpclient:commons-httpclient:3.1'
