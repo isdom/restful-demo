@@ -44,7 +44,7 @@ dependencies {
     compile 'org.apache.commons:commons-lang3:3.12.0'
     
     // wechat api v3
-    compile 'com.github.wechatpay-apiv3:wechatpay-apache-httpclient:0.4.8'
+    compile 'com.github.wechatpay-apiv3:wechatpay-apache-httpclient:0.4.9'
     
     compile 'com.hynnet:jxl:2.6.12.1'
 
