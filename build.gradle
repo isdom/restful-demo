@@ -28,7 +28,7 @@ dependencies {
     compile('org.jocean:jocean-bce:0.0.1-SNAPSHOT') { transitive = false }
     
     /* for aliyun-sdk-oss */
-    compile 'com.aliyun.oss:aliyun-sdk-oss:3.16.0'
+    compile 'com.aliyun.oss:aliyun-sdk-oss:3.16.1'
     
     compile "io.netty:netty-all:${nettyVersion}"
     
