@@ -61,7 +61,8 @@ public class ChatgptDemo {
     @OnError({
         "this.handleAllError"
         })
-    public String ask(@QueryParam("a") final String question) {
+    public String ask(@QueryParam("q") final String question) {
+    	LOG.info("chatgpt ask question {}", question);
         return question;
     }
 }
