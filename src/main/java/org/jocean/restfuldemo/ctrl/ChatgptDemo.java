@@ -1,10 +1,10 @@
 package org.jocean.restfuldemo.ctrl;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.UUID;
 
 import javax.inject.Inject;
@@ -13,33 +13,19 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
-import org.jocean.aliyun.oss.OssAPI;
-import org.jocean.aliyun.oss.OssBucket;
-import org.jocean.aliyun.oss.OssException;
-import org.jocean.aliyun.sts.STSCredentials;
-import org.jocean.http.DoFlush;
-import org.jocean.http.FullMessage;
-import org.jocean.http.MessageBody;
-import org.jocean.idiom.DisposableWrapper;
 import org.jocean.idiom.ExceptionUtils;
-import org.jocean.netty.util.BufsInputStream;
-import org.jocean.svr.ResponseUtil;
 import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
-import org.jocean.svr.annotation.RpcFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
-import com.google.common.io.ByteStreams;
+import com.unfbx.chatgpt.OpenAiClient;
+import com.unfbx.chatgpt.entity.completions.CompletionResponse;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpUtil;
-import rx.Observable;
 
 
 @Path("/newrest/")
@@ -48,8 +34,8 @@ import rx.Observable;
 public class ChatgptDemo {
     private static final Logger LOG = LoggerFactory.getLogger(ChatgptDemo.class);
 
-    @Value("${upload.path}")
-    String _uploadPath;
+    @Value("${openai.apikey}")
+    String _openaiApiKey;
 
     @HandleError(Exception.class)
     String handleAllError(final HttpRequest req, final Exception e) {
@@ -63,6 +49,9 @@ public class ChatgptDemo {
         })
     public String ask(@QueryParam("q") final String question) {
     	LOG.info("chatgpt ask question {}", question);
-        return question;
+    	
+        final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
+        CompletionResponse completions = openAiClient.completions(question);
+        return Arrays.toString(completions.getChoices());
     }
 }
