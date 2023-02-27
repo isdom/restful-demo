@@ -1,15 +1,5 @@
 package org.jocean.restfuldemo.ctrl;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.UUID;
-
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
@@ -23,6 +13,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.unfbx.chatgpt.OpenAiClient;
+import com.unfbx.chatgpt.entity.common.Choice;
 import com.unfbx.chatgpt.entity.completions.CompletionResponse;
 
 import io.netty.handler.codec.http.HttpRequest;
@@ -49,9 +40,14 @@ public class ChatgptDemo {
         })
     public String ask(@QueryParam("q") final String question) {
     	LOG.info("chatgpt ask question {}", question);
-    	
+
         final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
-        CompletionResponse completions = openAiClient.completions(question);
-        return Arrays.toString(completions.getChoices());
+        final CompletionResponse completions = openAiClient.completions(question);
+        final Choice[] choices = completions.getChoices();
+        if (choices.length >= 1) {
+            return choices[0].getText();
+        } else {
+            return "(null)";
+        }
     }
 }
