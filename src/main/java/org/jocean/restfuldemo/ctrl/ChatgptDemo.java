@@ -4,6 +4,9 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
+import org.jocean.http.ContentUtil;
+import org.jocean.http.MessageBody;
+import org.jocean.http.MessageUtil;
 import org.jocean.idiom.ExceptionUtils;
 import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
@@ -18,6 +21,7 @@ import com.unfbx.chatgpt.entity.common.Choice;
 import com.unfbx.chatgpt.entity.completions.CompletionResponse;
 
 import io.netty.handler.codec.http.HttpRequest;
+import rx.Observable;
 
 
 @Path("/newrest/")
@@ -59,18 +63,20 @@ public class ChatgptDemo {
     @OnError({
         "this.handleAllError"
         })
-    public String postask(final String question) {
-    	LOG.info("chatgpt ask question {}", question);
+    public Observable<String> postask(final Observable<MessageBody> omb) {
+    	return omb.flatMap(body -> MessageUtil.<String>decodeContentAs(body.content(), (is, type) -> MessageUtil.parseContentAsString(is), String.class)).map(question -> {
+        	LOG.info("chatgpt ask question {}", question);
 
-        final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
-        final CompletionResponse completions = openAiClient.completions(question);
-        final Choice[] choices = completions.getChoices();
-        if (choices.length >= 1 && choices[0].getText() != null) {
-        	final String answer = choices[0].getText();
-        	LOG.info("chatgpt answer {}", answer);
-            return answer;
-        } else {
-            return "(null)";
-        }
+            final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
+            final CompletionResponse completions = openAiClient.completions(question);
+            final Choice[] choices = completions.getChoices();
+            if (choices.length >= 1 && choices[0].getText() != null) {
+            	final String answer = choices[0].getText();
+            	LOG.info("chatgpt answer {}", answer);
+                return answer;
+            } else {
+                return "(null)";
+            }
+    	});
     }
 }
