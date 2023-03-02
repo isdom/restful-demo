@@ -21,6 +21,8 @@ dependencies {
     compile 'org.jocean:jocean-jdmk:0.0.2'
     compile 'org.jocean:jocean-svr:0.0.2-SNAPSHOT'
     
+    compile 'gdt:gdt-session:0.0.1-SNAPSHOT'
+    
     compile('org.jocean:jocean-aliyun:0.0.1-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-wechat:0.0.2-SNAPSHOT') { transitive = false }
     compile('org.jocean:jocean-redis:0.0.1-SNAPSHOT') { transitive = false }
