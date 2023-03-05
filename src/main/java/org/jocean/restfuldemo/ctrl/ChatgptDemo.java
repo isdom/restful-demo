@@ -4,12 +4,14 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 
-import org.jocean.http.ContentUtil;
 import org.jocean.http.MessageBody;
 import org.jocean.http.MessageUtil;
 import org.jocean.idiom.ExceptionUtils;
+import org.jocean.restfuldemo.ctrl.OpenAiAPI.ChatChoice;
+import org.jocean.restfuldemo.ctrl.OpenAiAPI.ChatMessage;
 import org.jocean.svr.annotation.HandleError;
 import org.jocean.svr.annotation.OnError;
+import org.jocean.svr.annotation.RpcFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -78,5 +80,31 @@ public class ChatgptDemo {
                 return "(null)";
             }
     	});
+    }
+
+    @RpcFacade
+    OpenAiAPI openai;
+
+    @Path("chatgpt/chat")
+    @POST
+    public Observable<String> chat(final Observable<MessageBody> omb) {
+        return omb.flatMap(body -> MessageUtil.<String>decodeContentAs(body.content(), (is, type) -> MessageUtil.parseContentAsString(is), String.class))
+                .doOnNext(question ->  LOG.info("chatgpt ask question {}", question))
+                .flatMap(question -> openai.chatCompletion()
+                        .authorization("Bearer "+_openaiApiKey)
+                        .model("gpt-3.5-turbo")
+                        .messages(new ChatMessage[]{new ChatMessage("user", question)})
+                        .call())
+                .map( completion -> {
+                      final ChatChoice[] choices = completion.getChoices();
+                      if (choices.length >= 1 && choices[0].getText() != null) {
+                          final String answer = choices[0].getText();
+                          LOG.info("chatgpt answer {}", answer);
+                          return answer;
+                      } else {
+                          return "(null)";
+                      }
+                });
+
     }
 }
