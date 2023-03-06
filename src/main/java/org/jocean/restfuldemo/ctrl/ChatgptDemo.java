@@ -97,8 +97,8 @@ public class ChatgptDemo {
                         .call())
                 .map( completion -> {
                       final ChatChoice[] choices = completion.getChoices();
-                      if (choices.length >= 1 && choices[0].getText() != null) {
-                          final String answer = choices[0].getText();
+                      if (choices.length >= 1 && choices[0].getMessage() != null && choices[0].getMessage().getContent() != null) {
+                          final String answer = choices[0].getMessage().getRole() + ":" + choices[0].getMessage().getContent() + "/" + choices[0].getIndex() + "/" + choices[0].getFinish_reason();
                           LOG.info("chatgpt answer {}", answer);
                           return answer;
                       } else {

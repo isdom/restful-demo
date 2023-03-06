@@ -33,6 +33,7 @@ dependencies {
     compile 'com.aliyun.oss:aliyun-sdk-oss:3.16.1'
     
     compile "io.netty:netty-all:${nettyVersion}"
+    // compile "io.netty:netty-tcnative-boringssl-static:${nettyTcnativeVersion}:windows-x86_64"
     
     compile 'com.netflix.hystrix:hystrix-core:1.5.12'
     compile 'com.netflix.hystrix:hystrix-metrics-event-stream:1.5.12'
