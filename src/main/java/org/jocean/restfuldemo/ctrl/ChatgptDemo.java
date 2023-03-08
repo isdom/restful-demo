@@ -104,7 +104,7 @@ public class ChatgptDemo {
                           LOG.info("chatgpt answer {}", answer);
                           return answer;
                       } else {
-                          return "(null)";
+                          return "(error)";
                       }
                 });
 
