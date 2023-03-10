@@ -100,7 +100,10 @@ public class ChatgptDemo {
                       if (choices.length >= 1 && choices[0].getMessage() != null && choices[0].getMessage().getContent() != null) {
                           final String answer = choices[0].getMessage().getRole() + ":" + choices[0].getMessage().getContent()
                                   + "/" + choices[0].getIndex() + "/" + choices[0].getFinish_reason()
-                                  + "/" + completion.getUsage();
+                                  + "/" + "{prompt_tokens:" + completion.getUsage().getPrompt_tokens()
+                                  + "/completion_tokens:" + completion.getUsage().getCompletion_tokens()
+                                  + "/total_tokens:" + completion.getUsage().getTotal_tokens() + "}"
+                                  ;
                           LOG.info("chatgpt answer {}", answer);
                           return answer;
                       } else {
