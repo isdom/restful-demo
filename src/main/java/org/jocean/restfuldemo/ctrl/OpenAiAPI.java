@@ -234,7 +234,13 @@ public interface OpenAiAPI {
         // How many chat completion choices to generate for each input message.
         @JSONField(name="n")
         public ChatCompletionBuilder n(final Integer n);
-
+        
+        // stream        boolean        Optional
+        // Defaults to false
+        // If set, partial message deltas will be sent, like in ChatGPT. Tokens will be sent as data-only server-sent events as they become available, with the stream terminated by a data: [DONE] message.
+        @JSONField(name="steam")
+        public ChatCompletionBuilder steam(final Boolean steam);
+        
         //  max_tokens        integer        Optional
         //  Defaults to inf
         //  The maximum number of tokens allowed for the generated answer. By default, the number of tokens the model can return will be (4096 - prompt tokens).
