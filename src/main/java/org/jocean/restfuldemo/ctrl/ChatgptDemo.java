@@ -98,13 +98,13 @@ public class ChatgptDemo {
                 .map( completion -> {
                       final ChatChoice[] choices = completion.getChoices();
                       if (choices.length >= 1 && choices[0].getMessage() != null && choices[0].getMessage().getContent() != null) {
-                          final String answer = choices[0].getMessage().getRole() + ":" + choices[0].getMessage().getContent()
+                          final String answer = "(" + choices[0].getMessage().getRole() + "):" + choices[0].getMessage().getContent()
                                   + "/" + choices[0].getIndex() + "/" + choices[0].getFinish_reason()
                                   + "/" + "{prompt_tokens:" + completion.getUsage().getPrompt_tokens()
                                   + "/completion_tokens:" + completion.getUsage().getCompletion_tokens()
                                   + "/total_tokens:" + completion.getUsage().getTotal_tokens() + "}"
                                   ;
-                          LOG.info("chatgpt answer {}", answer);
+                          LOG.info("chatgpt: {}", answer);
                           return answer;
                       } else {
                           return "(error)";
