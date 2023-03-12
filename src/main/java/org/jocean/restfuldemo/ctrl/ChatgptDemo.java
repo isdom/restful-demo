@@ -74,7 +74,7 @@ public class ChatgptDemo {
             final Choice[] choices = completions.getChoices();
             if (choices.length >= 1 && choices[0].getText() != null) {
             	final String answer = choices[0].getText();
-            	LOG.info("chatgpt answer {}", answer);
+            	LOG.info("chatgpt response {}", answer);
                 return answer;
             } else {
                 return "(null)";
