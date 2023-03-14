@@ -46,7 +46,7 @@ public class ChatgptDemo {
         "this.handleAllError"
         })
     public String ask(@QueryParam("q") final String question) {
-    	LOG.info("chatgpt ask question {}", question);
+    	LOG.info("ask question {}", question);
 
         final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
         final CompletionResponse completions = openAiClient.completions(question);
@@ -67,7 +67,7 @@ public class ChatgptDemo {
         })
     public Observable<String> postask(final Observable<MessageBody> omb) {
     	return omb.flatMap(body -> MessageUtil.<String>decodeContentAs(body.content(), (is, type) -> MessageUtil.parseContentAsString(is), String.class)).map(question -> {
-        	LOG.info("chatgpt ask question {}", question);
+        	LOG.info("ask question {}", question);
 
             final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
             final CompletionResponse completions = openAiClient.completions(question);
