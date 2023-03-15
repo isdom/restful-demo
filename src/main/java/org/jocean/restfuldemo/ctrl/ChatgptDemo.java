@@ -100,7 +100,7 @@ public class ChatgptDemo {
                       if (choices.length >= 1
                 		  && choices[0].getMessage() != null 
                 		  && choices[0].getMessage().getContent() != null) {
-                          final String answer = "(" + choices[0].getMessage().getRole() + "):" + choices[0].getMessage().getContent()
+                          final String answer = "[" + choices[0].getMessage().getRole() + "]:" + choices[0].getMessage().getContent()
                                   + "/" + choices[0].getIndex() + "/" + choices[0].getFinish_reason()
                                   + "/" + "{prompt_tokens:" + completion.getUsage().getPrompt_tokens()
                                   + "/completion_tokens:" + completion.getUsage().getCompletion_tokens()
