@@ -27,6 +27,8 @@ public class GdtDemo {
     public Observable<String> ask(@QueryParam("sid") final String sid) {
     	LOG.info("sid: {}", sid);
     	
-    	return sessionspi.getBootRequest().sessionid(sid).call().map(bootreq -> bootreq.toString()).doOnNext( req -> LOG.info("req: {}", req));
+    	return sessionspi.getBootRequest().sessionid(sid).call()
+    			.map(bootreq -> bootreq.toString())
+    			.doOnNext( req -> LOG.info("req's path & params: {}", req));
     }
 }
