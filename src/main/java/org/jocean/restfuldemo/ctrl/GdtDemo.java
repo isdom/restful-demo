@@ -28,7 +28,8 @@ public class GdtDemo {
     	LOG.info("sid: {}", sid);
     	
     	return sessionspi.getBootRequest().sessionid(sid).call()
-    			.map(bootreq -> bootreq.toString())
-    			.doOnNext( req -> LOG.info("req's path & params: {}", req));
+    			.doOnNext(req -> LOG.info("host: {}", req.getHost()))
+    			.doOnNext(req -> LOG.info("uri: {}", req.getUri()))
+    			.map(bootreq -> bootreq.toString());
     }
 }
