@@ -1,5 +1,7 @@
 package org.jocean.restfuldemo.ctrl;
 
+import java.util.Arrays;
+
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
@@ -48,7 +50,7 @@ public class ChatgptDemo {
     public String ask(@QueryParam("q") final String question) {
     	LOG.info("ask question {}", question);
 
-        final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
+        final OpenAiClient openAiClient = OpenAiClient.builder().apiKey( Arrays.asList(_openaiApiKey)).build();
         final CompletionResponse completions = openAiClient.completions(question);
         final Choice[] choices = completions.getChoices();
         if (choices.length >= 1 && choices[0].getText() != null) {
@@ -69,7 +71,7 @@ public class ChatgptDemo {
     	return omb.flatMap(body -> MessageUtil.<String>decodeContentAs(body.content(), (is, type) -> MessageUtil.parseContentAsString(is), String.class)).map(question -> {
         	LOG.info("ask question {}", question);
 
-            final OpenAiClient openAiClient = new OpenAiClient(_openaiApiKey,60,60,60);
+            final OpenAiClient openAiClient = OpenAiClient.builder().apiKey( Arrays.asList(_openaiApiKey)).build();
             final CompletionResponse completions = openAiClient.completions(question);
             final Choice[] choices = completions.getChoices();
             if (choices.length >= 1 && choices[0].getText() != null) {
