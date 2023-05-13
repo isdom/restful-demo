@@ -51,7 +51,7 @@ dependencies {
     
     compile 'com.hynnet:jxl:2.6.12.1'
     
-    compile 'com.unfbx:chatgpt-java:1.0.1'
+    compile 'com.unfbx:chatgpt-java:1.0.13'
 
     testCompile 'org.jmockit:jmockit:1.49'
     testCompile 'junit:junit:4.13.2'
